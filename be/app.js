@@ -90,13 +90,16 @@ async function startServer() {
     await initializeDatabase();
     await sequelize.sync({ force: false }); // Đồng bộ database, force: true để tạo lại bảng
     logger.info('Đã đồng bộ cơ sở dữ liệu thành công!');
+
     const PORT = process.env.PORT || 3456;
-    server = app.listen(PORT, () => {
+    const HOST = '0.0.0.0'; // Lắng nghe trên tất cả các địa chỉ mạng
+    server = app.listen(PORT, HOST, () => {
       logger.info(`Máy chủ đang chạy trên cổng ${PORT}`);
       if (process.env.NODE_ENV !== 'production') {
         logger.info(`Swagger UI có sẵn tại http://localhost:${PORT}/api-docs`);
       }
     });
+
   } catch (error) {
     logger.error('Không thể khởi động máy chủ:', { error: error.message });
     process.exit(1);

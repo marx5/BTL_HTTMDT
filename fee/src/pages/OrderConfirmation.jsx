@@ -143,9 +143,7 @@ const OrderConfirmation = () => {
                 <p className="mt-1 text-sm text-gray-900">
                   {order.paymentMethod === 'cod'
                     ? 'Thanh toán khi nhận hàng'
-                    : order.paymentMethod === 'vnpay'
-                    ? 'VNPay'
-                    : 'PayPal'}
+                    : order.paymentMethod}
                 </p>
                 <p className={`text-sm mt-1 ${
                   order.paymentStatus === 'PAID' ? 'text-green-600' : 

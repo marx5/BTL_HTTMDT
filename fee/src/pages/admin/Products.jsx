@@ -421,21 +421,21 @@ const Products = () => {
           <table className="min-w-full bg-white border">
             <thead>
               <tr>
-                <th className="py-2 px-4 border-b">ID</th>
-                <th className="py-2 px-4 border-b">Hình ảnh</th>
-                <th className="py-2 px-4 border-b">Tên sản phẩm</th>
-                <th className="py-2 px-4 border-b">Giá</th>
-                <th className="py-2 px-4 border-b">Danh mục</th>
-                <th className="py-2 px-4 border-b">Số lượng</th>
-                <th className="py-2 px-4 border-b">Hành động</th>
+                <th className="py-2 px-4 border-b text-center">ID</th> 
+                <th className="py-2 px-4 border-b text-center">Hình ảnh</th> 
+                <th className="py-2 px-4 border-b text-left">Tên sản phẩm</th> 
+                <th className="py-2 px-4 border-b text-right">Giá</th> 
+                <th className="py-2 px-4 border-b text-left">Danh mục</th>
+                <th className="py-2 px-4 border-b text-center">Số lượng</th>
+                <th className="py-2 px-4 border-b text-center">Hành động</th> 
               </tr>
             </thead>
             <tbody>
               {products.length > 0 ? (
                 products.map((product) => (
                   <tr key={product.id} className="hover:bg-gray-50">
-                    <td className="py-2 px-4 border-b">{product.id}</td>
-                    <td className="py-2 px-4 border-b">
+                    <td className="py-2 px-4 border-b text-center">{product.id}</td> 
+                    <td className="py-2 px-4 border-b text-center"> 
                       {getProductImage(product) ? (
                         <img
                           src={getProductImage(product)}
@@ -455,17 +455,16 @@ const Products = () => {
                         </div>
                       )}
                     </td>
-                    <td className="py-2 px-4 border-b">{product.name}</td>
-                    <td className="py-2 px-4 border-b">
+                    <td className="py-2 px-4 border-b text-left">{product.name}</td> 
+                    <td className="py-2 px-4 border-b text-right"> 
                       {product.price?.toLocaleString('vi-VN')} VND
                     </td>
-                    <td className="py-2 px-4 border-b">
-                      {categories.find((c) => c.id === product.categoryId)
-                        ?.name || 'Không có'}
+                    <td className="py-2 px-4 border-b text-left">
+                      {product.Category?.name || 'Không có'}
                     </td>
-                    <td className="py-2 px-4 border-b">{product.stock}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <div className="flex justify-end space-x-2">
+                    <td className="py-2 px-4 border-b text-center">{product.totalStock !== undefined ? product.totalStock : 'N/A'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium"> 
+                      <div className="flex justify-center space-x-2"> 
                         <Link
                           to={`/admin/products/${product.id}`}
                           className="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md text-indigo-700 bg-indigo-100 hover:bg-indigo-200"

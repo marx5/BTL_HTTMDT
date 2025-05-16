@@ -34,9 +34,6 @@ import Banners from './pages/admin/Banners';
 import OrderConfirmation from './pages/OrderConfirmation';
 import { Toaster } from 'react-hot-toast';
 import AdminLayout from './components/layout/AdminLayout';
-import PaypalSuccess from './pages/PaypalSuccess';
-import PaypalCancel from './pages/PaypalCancel';
-import VnpayResult from './pages/VnpayResult';
 import { Navigate } from 'react-router-dom';
 
 // Tạo component ProtectedRoute để bảo vệ các route cần xác thực
@@ -142,10 +139,6 @@ const App = () => {
                   <Route path="/products" element={<Products />} />
                   <Route path="/products/category/:categoryId" element={<Products />}/>
                   <Route path="/order-confirmation/:id" element={<OrderConfirmation />} />
-                  <Route path="/paypal-success" element={<ProtectedRoute><PaypalSuccess /></ProtectedRoute>} />
-                  <Route path="/paypal-cancel" element={<ProtectedRoute><PaypalCancel /></ProtectedRoute>} />
-                  <Route path="/payment-result" element={<ProtectedRoute><VnpayResult /></ProtectedRoute>} />
-                  <Route path="/payment/vnpay-result" element={<ProtectedRoute><VnpayResult /></ProtectedRoute>} />
                 </Routes>
               </div>
               <Footer />

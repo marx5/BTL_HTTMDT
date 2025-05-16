@@ -24,9 +24,9 @@ const { auth, adminAuth } = require('../middleware/auth');
  *                 description: ID địa chỉ giao hàng
  *               paymentMethod:
  *                 type: string
- *                 enum: [paypal, cod]
+ *                 enum: [cod]
  *                 example: cod
- *                 description: Phương thức thanh toán (PayPal hoặc COD)
+ *                 description: Phương thức thanh toán (Chỉ hỗ trợ COD)
  *             required:
  *               - addressId
  *     responses:
@@ -103,9 +103,9 @@ router.post('/', auth, orderController.createOrder);
  *                 description: ID địa chỉ giao hàng
  *               paymentMethod:
  *                 type: string
- *                 enum: [paypal, cod]
+ *                 enum: [cod]
  *                 example: cod
- *                 description: Phương thức thanh toán (PayPal hoặc COD)
+ *                 description: Phương thức thanh toán (Chỉ hỗ trợ COD)
  *             required:
  *               - ProductVariantId
  *               - quantity

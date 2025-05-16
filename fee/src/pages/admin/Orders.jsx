@@ -130,7 +130,7 @@ const Orders = () => {
                     {formatPrice(order.total)}
                   </td>
                   <td className="py-2 px-4 border-b">
-                    {order.paymentMethod === 'cod' ? 'COD' : 'PayPal'}
+                    {order.paymentMethod === 'cod' ? 'COD' : order.paymentMethod} 
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <select

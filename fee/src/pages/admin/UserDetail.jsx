@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getUserById, getUserOrders } from '../../services/user';
 import { showError } from '../../utils/notification';
@@ -10,7 +10,7 @@ const UserDetail = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const fetchUser = async () => {
+  const fetchUser = useCallback(async () => {
     try {
       setLoading(true);
       const response = await getUserById(id);
@@ -22,11 +22,11 @@ const UserDetail = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
 
   useEffect(() => {
     fetchUser();
-  }, [id]);
+  }, [id, fetchUser]);
 
   if (loading) {
     return (
@@ -164,7 +164,7 @@ const UserDetail = () => {
                       Phương thức:{' '}
                       {order.paymentMethod === 'cod'
                         ? 'Thanh toán khi nhận hàng'
-                        : 'PayPal'}
+                        : order.paymentMethod}
                     </p>
                     <span
                       className={`px-3 py-1 rounded-full text-sm ${getStatusColor(order.status)}`}
@@ -228,7 +228,7 @@ const UserDetail = () => {
                           Phương thức:{' '}
                           {order.Payment.method === 'cod'
                             ? 'Thanh toán khi nhận hàng'
-                            : 'PayPal'}
+                            : order.Payment.method}
                         </p>
                         <p className="text-sm">
                           Trạng thái: {order.Payment.status}
