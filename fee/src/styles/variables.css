@@ -1,0 +1,19 @@
+:root {
+  /* Màu sắc */
+  --color-primary: #1d4ed8;
+  --color-secondary: #f59e0b;
+  --color-neutral: #f3f4f6;
+  --color-error: #ef4444;
+  --color-success: #10b981;
+
+  /* Font */
+  --font-family: 'Inter', sans-serif;
+  --font-size-base: 16px;
+  --font-size-lg: 20px;
+  --font-size-xl: 24px;
+
+  /* Spacing */
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+}

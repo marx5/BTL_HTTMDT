@@ -1,0 +1,41 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Style toàn cục */
+:root {
+  --color-primary: #1d4ed8; /* Xanh đậm */
+  --color-secondary: #f59e0b; /* Vàng */
+  --color-neutral: #f3f4f6; /* Xám nhạt */
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background-color: #f9fafb;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* Reset và style cơ bản */
+* {
+  box-sizing: inherit;
+}
+
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+button,
+input,
+select {
+  font-family: inherit;
+}
+
+/* Tùy chỉnh thêm nếu cần */
+.container {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
