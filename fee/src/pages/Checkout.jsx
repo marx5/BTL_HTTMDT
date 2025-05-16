@@ -4,9 +4,8 @@ import { useDispatch, useSelector } from 'react-redux';
 import useCart from '../hooks/useCart';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-hot-toast';
-import { createOrder, createPayment, buyNow } from '../services/order';
-import { createCodPayment, createVnpayPayment, createPaypalPayment } from '../services/payment';
-import { PayPalScriptProvider, PayPalButtons } from '@paypal/react-paypal-js';
+import { createOrder, buyNow } from '../services/order';
+import { createCodPayment } from '../services/payment';
 import Button from '../components/common/Button';
 import AddressForm from '../components/address/AddressForm';
 import AddressList from '../components/address/AddressList';
@@ -44,7 +43,6 @@ const Checkout = () => {
   const [error, setError] = useState(null);
   const [timeoutLoading, setTimeoutLoading] = useState(false);
   const [addressesLoaded, setAddressesLoaded] = useState(false); // Biến kiểm soát để đảm bảo chỉ gọi fetchAddresses 1 lần
-  const [paypalReady, setPaypalReady] = useState(false);
 
   // 30-minute timeout for buyNow
   const BUY_NOW_TIMEOUT = 30 * 60 * 1000; // 30 minutes in milliseconds
@@ -118,14 +116,9 @@ const Checkout = () => {
     console.log("Selected items:", selectedItems?.length);
     console.log("Cart items count:", cart?.length);
     console.log("Addresses count:", userAddresses?.length);
-    
-    // Debug địa chỉ
-    if (userAddresses && userAddresses.length > 0) {
-      console.log("First address structure:", userAddresses[0]);
-      console.log("Selected address:", selectedAddress);
-    }
+    console.log("Selected address:", selectedAddress);
   }, [cartLoading, authLoading, addressesLoading, buyNowLoading, isBuyNow, 
-      selectedItems?.length, cart?.length, userAddresses?.length, selectedAddress]);
+      selectedItems?.length, cart?.length, userAddresses, userAddresses?.length, selectedAddress]);
 
   // Lấy thông tin sản phẩm mua ngay từ localStorage nếu có
   useEffect(() => {
@@ -322,8 +315,10 @@ const Checkout = () => {
     dispatch, 
     token, 
     addressesLoaded, 
-    userAddresses.length,
-    addressesLoading
+    userAddresses,
+    addressesLoading,
+    BUY_NOW_TIMEOUT,
+    searchParams
   ]);
 
   // Set default address if available - chỉ chạy khi userAddresses thay đổi
@@ -343,307 +338,97 @@ const Checkout = () => {
         userAddresses.find((addr) => addr.isDefault) || userAddresses[0];
       setSelectedAddress(defaultAddress);
     }
-  }, [userAddresses, isBuyNow, buyNowItem, selectedAddress]);
+  }, [userAddresses, userAddresses.length, isBuyNow, buyNowItem, selectedAddress]);
 
   const handleCreateOrder = async () => {
+    console.log("handleCreateOrder called");
     if (!selectedAddress) {
-      toast.error('Vui lòng chọn địa chỉ giao hàng');
+      toast.error('Vui lòng chọn địa chỉ giao hàng.');
       return;
     }
 
+    // Kiểm tra giỏ hàng hoặc sản phẩm mua ngay
+    if (!isBuyNow && (!selectedItems || selectedItems.length === 0)) {
+        toast.error('Giỏ hàng của bạn đang trống hoặc chưa chọn sản phẩm nào.');
+        return;
+    }
+    if (isBuyNow && !buyNowItem) {
+        toast.error('Không có thông tin sản phẩm để mua ngay.');
+        return;
+    }
+
     setIsProcessing(true);
-    let orderResponse = null;
-    let paymentInitiated = false;
-    
+    toast.loading('Đang xử lý đơn hàng...');
+
     try {
       // BƯỚC 1: CHUẨN BỊ DỮ LIỆU ĐƠN HÀNG
-      // Chuẩn bị dữ liệu để tạo đơn hàng
       let orderData;
       
       if (isBuyNow && buyNowItem) {
-        // Đảm bảo dữ liệu cho API buy-now có đúng định dạng
         orderData = {
           ProductVariantId: buyNowItem.variantId,
           quantity: buyNowItem.quantity,
           addressId: selectedAddress.id,
-          paymentMethod: 'cod'  // Luôn luôn dùng COD trước tiên
+          paymentMethod: 'cod' // CHỈ CÓ COD
         };
       } else {
-        // Dữ liệu cho createOrder từ giỏ hàng
         orderData = {
           addressId: selectedAddress.id,
-          paymentMethod: 'cod'  // Luôn luôn dùng COD trước tiên
+          paymentMethod: 'cod' // CHỈ CÓ COD
         };
       }
       
-      // Hiển thị dữ liệu gửi đi để debug
-      console.log('Sending order data:', JSON.stringify(orderData));
-      
-      // Thêm kiểm tra token
-      if (!token) {
-        throw new Error('Không tìm thấy token xác thực. Vui lòng đăng nhập lại.');
-      }
-      
-      // BƯỚC 2: TẠO ĐƠN HÀNG
-      try {
-        // Gọi API để tạo đơn hàng
-        const apiCallTimeStart = Date.now();
-        
-        if (isBuyNow) {
-          console.log('Calling buyNow API...');
-          orderResponse = await buyNow(orderData, token);
-        } else {
-          console.log('Calling createOrder API...');
-          orderResponse = await createOrder(orderData, token);
-        }
-        
-        console.log(`API call completed in ${Date.now() - apiCallTimeStart}ms`);
-        console.log('Order API response:', orderResponse);
-        
-        if (!orderResponse) {
-          throw new Error('Server không phản hồi khi tạo đơn hàng');
-        }
-        
-        // Kiểm tra cấu trúc phản hồi - ID đơn hàng nằm trong trường 'order'
-        if (!orderResponse.order || !orderResponse.order.id) {
-          console.error('Missing order ID in response:', orderResponse);
-          throw new Error('Phản hồi từ server không hợp lệ: thiếu ID đơn hàng');
-        }
-        
-        // Lấy ID thực tế của đơn hàng
-        const orderId = orderResponse.order.id;
-      } catch (orderApiError) {
-        console.error('API Error Details:', orderApiError);
-        
-        // Kiểm tra lỗi từ response
-        if (orderApiError.response) {
-          console.error('API Response Error:', orderApiError.response.data);
-          
-          // Nếu lỗi từ server có message cụ thể
-          if (orderApiError.response.data && orderApiError.response.data.message) {
-            throw new Error(`Lỗi từ server: ${orderApiError.response.data.message}`);
-          }
-          
-          // Kiểm tra status code
-          if (orderApiError.response.status === 401) {
-            throw new Error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
-          } else if (orderApiError.response.status === 400) {
-            throw new Error('Dữ liệu đơn hàng không hợp lệ. Vui lòng kiểm tra lại.');
-          } else if (orderApiError.response.status === 500) {
-            throw new Error('Lỗi máy chủ. Vui lòng thử lại sau.');
-          }
-        }
-        
-        // Lỗi mạng
-        if (orderApiError.message && orderApiError.message.includes('Network Error')) {
-          throw new Error('Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng của bạn.');
-        }
-        
-        // Nếu không nhận diện được lỗi cụ thể
-        throw orderApiError;
-      }
-      
-      console.log('Order created successfully:', orderResponse);
-      
-      // BƯỚC 3: XỬ LÝ THANH TOÁN DỰA TRÊN PHƯƠNG THỨC
-      switch (paymentMethod) {
-        case 'cod':
-          // Thanh toán COD - đơn giản nhất
-          try {
-            await createCodPayment({ orderId: orderResponse.order.id });
-            paymentInitiated = true;
-            
-            // Xóa thông tin mua ngay sau khi thanh toán thành công
-            if (isBuyNow) localStorage.removeItem('buyNowItem');
-            
-      toast.success('Đơn hàng đã được tạo thành công!');
-            setTimeout(() => {
-              navigate(`/order-confirmation/${orderResponse.order.id}`);
-            }, 1000);
-          } catch (codError) {
-            console.error('COD payment error:', codError);
-            throw new Error('Không thể hoàn tất thanh toán COD');
-          }
-          break;
-          
-        case 'vnpay':
-          try {
-            // Format số tiền đúng định dạng VNPay yêu cầu (số nguyên)
-            const totalAmount = Math.round(total + shippingFee);
-            
-            console.log('Creating VNPay payment for order:', orderResponse.order.id, 'with amount:', totalAmount);
-            
-            // Đảm bảo mã paymentMethod đúng định dạng server mong đợi
-            const paymentData = {
-              orderId: orderResponse.order.id,
-              amount: totalAmount,
-              ipAddr: window.location.hostname || '127.0.0.1',
-              orderInfo: `Thanh toán đơn hàng #${orderResponse.order.id}`,
-              returnUrl: `${window.location.origin}/payment-result`
-            };
-            
-            console.log('VNPay payment request data:', JSON.stringify(paymentData));
-            
-            // Gọi API tạo thanh toán VNPay với timeout
-            const vnpayPromise = createVnpayPayment(paymentData);
-            
-            // Thêm timeout cho API call
-            const timeoutPromise = new Promise((_, reject) => 
-              setTimeout(() => reject(new Error('Timeout khi tạo thanh toán VNPay')), 15000)
-            );
-            
-            // Race giữa API call và timeout
-            const vnpayResponse = await Promise.race([vnpayPromise, timeoutPromise]);
-            
-            console.log('VNPay payment response:', vnpayResponse);
-            
-            if (!vnpayResponse) {
-              throw new Error('Không nhận được phản hồi từ cổng thanh toán VNPay');
-            }
-            
-            if (!vnpayResponse.paymentUrl) {
-              throw new Error('Không nhận được URL thanh toán từ VNPay');
-            }
-            
-            // Đánh dấu đã khởi tạo thanh toán
-            paymentInitiated = true;
-            
-            // Xóa thông tin mua ngay nếu là mua ngay
-            if (isBuyNow) localStorage.removeItem('buyNowItem');
-            
-            // Đảm bảo URL thanh toán hợp lệ
-            let paymentUrl = vnpayResponse.paymentUrl;
-            if (!paymentUrl.startsWith('http')) {
-              paymentUrl = `https://${paymentUrl}`;
-            }
-            
-            console.log('Redirecting to VNPay URL:', paymentUrl);
-            
-            // Chuyển hướng đến trang thanh toán VNPay sau một khoảng thời gian ngắn
-            toast.success('Đơn hàng đã được tạo! Đang chuyển hướng đến cổng thanh toán VNPay...');
-            
-            // Lưu URL thanh toán vào localStorage để có thể truy cập sau này nếu cần
-            localStorage.setItem('vnpayPaymentUrl', paymentUrl);
-            
-            // Tạo iframe để xử lý thanh toán trong trang hiện tại
-            try {
-              // Đầu tiên thử mở trong iframe
-              const iframe = document.createElement('iframe');
-              iframe.id = 'vnpay-iframe';
-              iframe.style.width = '100%';
-              iframe.style.height = '650px';
-              iframe.style.border = 'none';
-              iframe.style.position = 'fixed';
-              iframe.style.top = '0';
-              iframe.style.left = '0';
-              iframe.style.zIndex = '9999';
-              iframe.style.backgroundColor = '#fff';
-              iframe.setAttribute('allowfullscreen', 'true');
-              iframe.src = paymentUrl;
-              
-              // Thêm nút đóng
-              const closeButton = document.createElement('button');
-              closeButton.textContent = 'Đóng';
-              closeButton.style.position = 'fixed';
-              closeButton.style.top = '10px';
-              closeButton.style.right = '10px';
-              closeButton.style.zIndex = '10000';
-              closeButton.style.padding = '8px 16px';
-              closeButton.style.backgroundColor = '#d32f2f';
-              closeButton.style.color = 'white';
-              closeButton.style.border = 'none';
-              closeButton.style.borderRadius = '4px';
-              closeButton.style.cursor = 'pointer';
-              closeButton.onclick = function() {
-                document.body.removeChild(iframe);
-                document.body.removeChild(closeButton);
-                navigate(`/order-confirmation/${orderResponse.order.id}?payment=pending`);
-              };
-              
-              document.body.appendChild(iframe);
-              document.body.appendChild(closeButton);
-              
-              // Kiểm tra nếu iframe không tải được hoặc bị chặn
-              setTimeout(() => {
-                try {
-                  // Kiểm tra nếu iframe đã được truy cập
-                  if (iframe.contentWindow.location.href) {
-                    console.log('Iframe loaded successfully');
-                  }
-                } catch (e) {
-                  // Nếu không thể truy cập iframe (do CORS hoặc bị chặn)
-                  console.error('Iframe access error, falling back to window.location:', e);
-                  document.body.removeChild(iframe);
-                  document.body.removeChild(closeButton);
-                  window.location.href = paymentUrl;
-                }
-              }, 3000);
-            } catch (iframeError) {
-              console.error('Error creating VNPay iframe, falling back to direct redirect:', iframeError);
-              window.location.href = paymentUrl;
-            }
-          } catch (vnpayError) {
-            console.error('VNPay payment error:', vnpayError);
-            throw new Error(`Lỗi khởi tạo thanh toán VNPay: ${vnpayError.message}`);
-          }
-          break;
-          
-        case 'paypal':
-          try {
-            console.log('Creating PayPal payment for order:', orderResponse.order.id);
-            
-            // Lưu orderId vào localStorage để sử dụng sau khi thanh toán PayPal hoàn tất
-            localStorage.setItem('paypalOrderId', orderResponse.order.id);
-            
-            // Gọi API tạo thanh toán PayPal
-            const paypalResponse = await createPaypalPayment({
-              orderId: orderResponse.order.id,
-              returnUrl: `${window.location.origin}/paypal-success`,
-              cancelUrl: `${window.location.origin}/paypal-cancel`
-            });
-            
-            console.log('PayPal payment response:', paypalResponse);
-            
-            if (!paypalResponse || !paypalResponse.approvalUrl) {
-              throw new Error('Không nhận được URL thanh toán từ PayPal');
-            }
-            
-            // Đánh dấu đã khởi tạo thanh toán
-            paymentInitiated = true;
-            
-            // Xóa thông tin mua ngay nếu là mua ngay
-            if (isBuyNow) localStorage.removeItem('buyNowItem');
-            
-            // Chuyển hướng đến trang thanh toán PayPal
-            toast.success('Đang chuyển hướng đến cổng thanh toán PayPal...');
-            setTimeout(() => {
-              window.location.href = paypalResponse.approvalUrl;
-            }, 1000);
-          } catch (paypalError) {
-            console.error('PayPal payment error:', paypalError);
-            throw new Error(`Lỗi khởi tạo thanh toán PayPal: ${paypalError.message}`);
-          }
-          break;
-          
-        default:
-          throw new Error('Phương thức thanh toán không được hỗ trợ');
-      }
-    } catch (err) {
-      console.error('Order process error:', err);
-      
-      // Hiển thị thông báo lỗi cụ thể cho người dùng
-      if (err.response && err.response.data && err.response.data.message) {
-        // Lỗi từ API có message cụ thể
-        toast.error(`Lỗi: ${err.response.data.message}`);
+      console.log("Order data being sent to API:", orderData);
+
+      // BƯỚC 2: TẠO ĐƠN HÀNG TRÊN BACKEND (CHUNG CHO MỌI PHƯƠNG THỨC)
+      let orderResponse;
+      if (isBuyNow) {
+        console.log('Calling buyNow API with:', orderData);
+        orderResponse = await buyNow(orderData, token);
       } else {
-        // Lỗi thông thường
-        toast.error(err.message || 'Không thể hoàn tất đơn hàng. Vui lòng thử lại.');
+        console.log('Calling createOrder API with:', orderData);
+        orderResponse = await createOrder(orderData, token);
+      }
+
+      console.log('Order creation response:', orderResponse);
+
+      if (!orderResponse || !orderResponse.order || !orderResponse.order.id) {
+        throw new Error('Không thể tạo đơn hàng từ phản hồi của API.');
       }
       
-      // Thông báo cho người dùng khi đơn hàng đã được tạo nhưng không thể tạo thanh toán
-      if (orderResponse && orderResponse.order && !paymentInitiated) {
-        toast.error('Đơn hàng đã được tạo nhưng không thể khởi tạo thanh toán. Vui lòng kiểm tra trong lịch sử đơn hàng của bạn.');
+      const orderId = orderResponse.order.id;
+      localStorage.setItem('latestOrderId', orderId); // Lưu orderId mới nhất
+
+      // BƯỚC 3: XỬ LÝ THANH TOÁN (CHỈ CÓ COD)
+      toast.dismiss(); // Xóa toast loading trước đó
+      console.log('Processing COD payment for order:', orderId);
+      
+      // Gọi API backend để xác nhận đơn hàng COD (nếu cần, backend có thể tự động làm việc này)
+      // Hiện tại, createCodPayment không làm gì nhiều ở frontend ngoài việc thông báo
+      const codResponse = await createCodPayment({ orderId }, token);
+      console.log('COD payment response:', codResponse);
+
+      if (codResponse && codResponse.message) {
+          showSuccess(codResponse.message || 'Đơn hàng COD đã được tạo thành công!');
+      } else {
+          showSuccess('Đơn hàng COD đã được tạo thành công!');
       }
+      
+      // Dọn dẹp localStorage cho buyNow
+      if (isBuyNow) {
+          localStorage.removeItem('buyNowItem');
+      }
+      
+      // Xóa các mục đã chọn khỏi Redux (nếu là từ giỏ hàng)
+      // dispatch(clearSelectedItems()); // Nếu có action này
+
+      navigate(`/order-confirmation/${orderId}?payment_method=cod`);
+
+    } catch (err) {
+      toast.dismiss();
+      console.error('Lỗi khi tạo đơn hàng hoặc thanh toán:', err);
+      const errorMessage = err.response?.data?.message || err.message || 'Có lỗi xảy ra trong quá trình đặt hàng.';
+      showError(errorMessage);
     } finally {
       setIsProcessing(false);
     }
@@ -964,62 +749,6 @@ const Checkout = () => {
                   </span>
                 </label>
               </div>
-                <div className="flex items-center">
-                  <input
-                    type="radio"
-                    id="vnpay"
-                    name="payment"
-                    value="vnpay"
-                    checked={paymentMethod === 'vnpay'}
-                    onChange={(e) => setPaymentMethod(e.target.value)}
-                    className="h-4 w-4 text-primary focus:ring-primary border-gray-300"
-                  />
-                  <label htmlFor="vnpay" className="ml-3">
-                    <span className="block text-sm font-medium text-gray-900">
-                      VNPay
-                    </span>
-                    <span className="block text-sm text-gray-500">
-                      Thanh toán qua cổng VNPay (ATM, thẻ tín dụng, QR Code)
-                    </span>
-                  </label>
-                </div>
-              <div className="flex items-center">
-                <input
-                  type="radio"
-                  id="paypal"
-                  name="payment"
-                  value="paypal"
-                  checked={paymentMethod === 'paypal'}
-                  onChange={(e) => setPaymentMethod(e.target.value)}
-                  className="h-4 w-4 text-primary focus:ring-primary border-gray-300"
-                />
-                <label htmlFor="paypal" className="ml-3">
-                  <span className="block text-sm font-medium text-gray-900">
-                    PayPal
-                  </span>
-                  <span className="block text-sm text-gray-500">
-                      Thanh toán qua PayPal hoặc thẻ tín dụng quốc tế
-                  </span>
-                </label>
-                </div>
-                
-                {paymentMethod === 'paypal' && (
-                  <div className="mt-4 p-4 bg-blue-50 rounded-lg">
-                    <p className="text-sm text-blue-600 mb-2">
-                      <i className="fas fa-info-circle mr-1"></i>
-                      Bạn sẽ được chuyển hướng đến trang thanh toán PayPal sau khi đặt hàng
-                    </p>
-                  </div>
-                )}
-                
-                {paymentMethod === 'vnpay' && (
-                  <div className="mt-4 p-4 bg-blue-50 rounded-lg">
-                    <p className="text-sm text-blue-600 mb-2">
-                      <i className="fas fa-info-circle mr-1"></i>
-                      Bạn sẽ được chuyển hướng đến cổng thanh toán VNPay sau khi đặt hàng
-                    </p>
-                  </div>
-                )}
             </div>
           </div>
         </div>
@@ -1062,19 +791,7 @@ const Checkout = () => {
                 <Button
                   variant="primary"
                   className="w-full"
-                  onClick={() => {
-                    console.log('----------------------');
-                    console.log('BUTTON CLICKED - PAYMENT METHOD:', paymentMethod);
-                    console.log('Selected address:', selectedAddress);
-                    console.log('isBuyNow:', isBuyNow);
-                    if (isBuyNow) {
-                      console.log('buyNowItem:', buyNowItem);
-                    } else {
-                      console.log('selectedItems:', selectedItems);
-                    }
-                    console.log('----------------------');
-                    handleCreateOrder();
-                  }}
+                  onClick={handleCreateOrder}
                   disabled={isProcessing || !selectedAddress || items.length === 0}
                 >
                   {isProcessing ? (

@@ -18,7 +18,7 @@ const { stringify } = require('flatted');
 
 const createOrderSchema = Joi.object({
   addressId: Joi.number().integer().required(),
-  paymentMethod: Joi.string().valid('paypal', 'cod', 'vnpay').default('cod'),
+  paymentMethod: Joi.string().valid('cod').required(),
 });
 
 const buyNowSchema = Joi.object({
@@ -34,7 +34,7 @@ const buyNowSchema = Joi.object({
     'any.required': 'ID địa chỉ là bắt buộc.',
     'number.base': 'ID địa chỉ phải là số.',
   }),
-  paymentMethod: Joi.string().valid('paypal', 'cod', 'vnpay').default('cod'),
+  paymentMethod: Joi.string().valid('cod').required(),
 });
 
 exports.createOrder = async (req, res, next) => {
@@ -160,9 +160,13 @@ exports.createOrder = async (req, res, next) => {
       transaction 
     });
 
+    console.log(`[OrderController - createOrder] Order ID: ${order.id}, Received paymentMethod: ${paymentMethod}. Preparing to check for email sending.`);
+
     const user = await User.findByPk(userId, { transaction });
     if (user && user.email) {
-      await sendOrderConfirmationEmail(user.email, order.id, total, shippingFee);
+      if (paymentMethod === 'cod') {
+        await sendOrderConfirmationEmail(user.email, order.id, total, shippingFee);
+      }
     }
 
     await transaction.commit();
@@ -265,8 +269,14 @@ exports.buyNow = async (req, res, next) => {
     variant.stock -= quantity;
     await variant.save({ transaction });
 
+    console.log(`[OrderController - buyNow] Order ID: ${order.id}, Received paymentMethod: ${paymentMethod}. Preparing to check for email sending.`);
+
     const user = await User.findByPk(userId, { transaction });
-    await sendOrderConfirmationEmail(user.email, order.id, total, shippingFee);
+    if (user && user.email) {
+      if (paymentMethod === 'cod') {
+        await sendOrderConfirmationEmail(user.email, order.id, total, shippingFee);
+      }
+    }
 
     await transaction.commit();
 

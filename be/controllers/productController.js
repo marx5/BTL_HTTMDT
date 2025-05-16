@@ -72,8 +72,19 @@ exports.getAllProducts = async (req, res, next) => {
       offset,
     });
 
+    // Tính toán totalStock cho mỗi sản phẩm
+    const productsWithTotalStock = products.rows.map(product => {
+      const plainProduct = product.toJSON(); // Chuyển Sequelize instance thành plain object
+      plainProduct.totalStock = plainProduct.ProductVariants.reduce((sum, variant) => {
+        return sum + (variant.stock || 0);
+      }, 0);
+      // Không cần trả về mảng ProductVariants đầy đủ nếu frontend chỉ cần totalStock
+      // delete plainProduct.ProductVariants; // Bạn có thể bỏ dòng này nếu frontend vẫn cần ProductVariants cho mục đích khác
+      return plainProduct;
+    });
+
     res.json({
-      products: products.rows,
+      products: productsWithTotalStock, // Trả về danh sách sản phẩm đã có totalStock
       totalPages: Math.ceil(products.count / limit),
     });
   } catch (err) {
