@@ -5,7 +5,6 @@ import { showSuccess, showError } from '../utils/notification';
 import Loader from '../components/common/Loader';
 import Button from '../components/common/Button';
 import useTitle from '../hooks/useTitle';
-import logoSrc from '../assets/images/logo.png';
 
 const VerifyEmail = () => {
   const navigate = useNavigate();
@@ -110,7 +109,7 @@ const VerifyEmail = () => {
     <div className="flex justify-center items-center min-h-screen bg-gray-100">
       <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8 text-center">
         <img
-          src={logoSrc}
+          src={process.env.PUBLIC_URL + '/logo.png'}
           alt="Fashion Store Logo"
           className="h-12 mx-auto mb-6"
         />

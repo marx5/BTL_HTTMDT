@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { logout } from '../../redux/slices/authSlice';
-import logoImage from '../../assets/images/logo.png';
 import { showSuccess } from '../../utils/notification';
 
 const Header = () => {
@@ -76,7 +75,7 @@ const Header = () => {
     <header className="bg-white shadow-md">
       <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
         <Link to="/" className="flex-shrink-0">
-          <img src={logoImage} alt="Logo" className="h-10" />
+          <img src={process.env.PUBLIC_URL + '/logo.png'} alt="Logo" className="h-10" />
         </Link>
         <form onSubmit={handleSearch} className="max-w-md mx-6">
           <input
