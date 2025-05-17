@@ -4,7 +4,7 @@ import Button from '../common/Button';
 import ReCAPTCHA from 'react-google-recaptcha';
 import useFormValidation from '../../hooks/useFormValidation';
 
-const LoginForm = ({ onSubmit }) => {
+const LoginForm = ({ onSubmit, isLoading }) => {
   const recaptchaRef = useRef(null);
   
   // Define validation schema
@@ -40,6 +40,9 @@ const LoginForm = ({ onSubmit }) => {
     setFieldValue,
     handleSubmit,
   } = useFormValidation(initialValues, validationSchema);
+
+  // Kết hợp isSubmitting từ hook và isLoading từ props
+  const currentlyProcessing = isSubmitting || isLoading;
 
   const handleRecaptchaChange = (value) => {
     setFieldValue('recaptchaToken', value);
@@ -80,6 +83,7 @@ const LoginForm = ({ onSubmit }) => {
         placeholder="Email"
         error={touched.email && errors.email ? errors.email : null}
         className="w-full"
+        disabled={currentlyProcessing}
         required
       />
       
@@ -92,6 +96,7 @@ const LoginForm = ({ onSubmit }) => {
         placeholder="Mật khẩu"
         error={touched.password && errors.password ? errors.password : null}
         className="w-full"
+        disabled={currentlyProcessing}
         required
       />
       
@@ -114,9 +119,9 @@ const LoginForm = ({ onSubmit }) => {
       <Button
         type="submit"
         className="w-full"
-        disabled={!values.email || !values.password || !values.recaptchaToken || isSubmitting}
+        disabled={!values.email || !values.password || !values.recaptchaToken || currentlyProcessing}
       >
-        {isSubmitting ? 'Đang xử lý...' : 'Đăng nhập'}
+        {currentlyProcessing ? 'Đang xử lý...' : 'Đăng nhập'}
       </Button>
     </form>
   );
