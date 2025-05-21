@@ -33,16 +33,18 @@ const Order = sequelize.define('Order', {
     defaultValue: 0,
   },
   paymentMethod: {
-    type: DataTypes.ENUM('paypal', 'cod', 'vnpay'),
+    type: DataTypes.ENUM('cod', 'vnpay','momo'),
     allowNull: false,
     defaultValue: 'cod',
   },
   status: {
-    type: DataTypes.ENUM('pending', 'completed', 'cancelled'),
+    type: DataTypes.ENUM('pending', 'completed', 'cancelled', 'refunded'),
+    allowNull: false,
     defaultValue: 'pending',
   },
   paymentStatus: {
-    type: DataTypes.ENUM('PENDING', 'PAID', 'FAILED'),
+    type: DataTypes.ENUM('PENDING', 'PAID', 'FAILED', 'CANCELLED', 'REFUNDED'),
+    allowNull: false,
     defaultValue: 'PENDING',
   },
   transactionDetails: {

@@ -38,5 +38,13 @@ router.get('/:orderId', auth, paymentController.getPayment);
 // Thanh toán COD
 router.post('/cod', auth, paymentController.createCodPayment);
 
+// VNPay routes
+router.post('/create_vnpay_payment', auth, paymentController.createVNPayPayment);
+router.get('/vnpay/return', paymentController.vnpayReturn);
+
+// MoMo routes
+router.post('/create_momo_payment', auth, paymentController.createMomoPayment);
+router.post('/momo_success', paymentController.momoSuccess);
+router.post('/momo_cancel', paymentController.momoCancel);
 
 module.exports = router;

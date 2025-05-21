@@ -14,11 +14,12 @@ const AppError = require('../utils/appError');
 const { sequelize } = require('../config/database');
 const Joi = require('joi');
 const { stringify } = require('flatted');
+const { ORDER_STATUS, PAYMENT_STATUS, getPaymentStatusForOrder } = require('../constants/paymentStatus');
 
 
 const createOrderSchema = Joi.object({
   addressId: Joi.number().integer().required(),
-  paymentMethod: Joi.string().valid('cod').required(),
+  paymentMethod: Joi.string().valid('cod', 'vnpay', 'momo').required(),
 });
 
 const buyNowSchema = Joi.object({
@@ -34,7 +35,7 @@ const buyNowSchema = Joi.object({
     'any.required': 'ID địa chỉ là bắt buộc.',
     'number.base': 'ID địa chỉ phải là số.',
   }),
-  paymentMethod: Joi.string().valid('cod').required(),
+  paymentMethod: Joi.string().valid('cod', 'vnpay', 'momo').required(),
 });
 
 exports.createOrder = async (req, res, next) => {
@@ -127,10 +128,24 @@ exports.createOrder = async (req, res, next) => {
         total,
         shippingFee,
         paymentMethod,
-        status: 'pending'
+        status: ORDER_STATUS.PENDING,
+        paymentStatus: PAYMENT_STATUS.PENDING
       },
       { transaction }
     );
+
+    // Tạo bản ghi Payment với trạng thái đồng bộ với Order
+    await Payment.create({
+      OrderId: order.id,
+      paymentMethod: paymentMethod,
+      status: PAYMENT_STATUS.PENDING,
+      amount: total + shippingFee
+    }, { transaction });
+
+    // Cập nhật lại trạng thái Order để đồng bộ với Payment
+    await order.update({
+      paymentStatus: PAYMENT_STATUS.PENDING
+    }, { transaction });
 
     // Create order products and update stock
     for (const item of cartItems) {
@@ -160,12 +175,52 @@ exports.createOrder = async (req, res, next) => {
       transaction 
     });
 
-    console.log(`[OrderController - createOrder] Order ID: ${order.id}, Received paymentMethod: ${paymentMethod}. Preparing to check for email sending.`);
-
     const user = await User.findByPk(userId, { transaction });
     if (user && user.email) {
       if (paymentMethod === 'cod') {
-        await sendOrderConfirmationEmail(user.email, order.id, total, shippingFee);
+        await sendOrderConfirmationEmail(
+          user.email, 
+          order.id, 
+          total, 
+          shippingFee, 
+          paymentMethod,
+          cartItems.map(item => ({
+            name: item.ProductVariant.Product.name,
+            quantity: item.quantity,
+            price: item.ProductVariant.Product.price,
+            image: item.ProductVariant.Product.ProductImages?.[0]?.url
+          }))
+        );
+      }
+      if (paymentMethod === 'vnpay' && paymentStatus === PAYMENT_STATUS.PAID) {
+        await sendOrderConfirmationEmail(
+          user.email, 
+          order.id, 
+          total, 
+          shippingFee, 
+          paymentMethod,
+          cartItems.map(item => ({
+            name: item.ProductVariant.Product.name,
+            quantity: item.quantity,
+            price: item.ProductVariant.Product.price,
+            image: item.ProductVariant.Product.ProductImages?.[0]?.url
+          }))
+        );
+      }
+      if (paymentMethod === 'momo' && paymentStatus === PAYMENT_STATUS.PAID) {
+        await sendOrderConfirmationEmail(
+          user.email, 
+          order.id, 
+          total, 
+          shippingFee, 
+          paymentMethod,
+          cartItems.map(item => ({
+            name: item.ProductVariant.Product.name,
+            quantity: item.quantity,
+            price: item.ProductVariant.Product.price,
+            image: item.ProductVariant.Product.ProductImages?.[0]?.url
+          }))
+        );
       }
     }
 
@@ -179,6 +234,7 @@ exports.createOrder = async (req, res, next) => {
         shippingFee: order.shippingFee,
         paymentMethod: order.paymentMethod,
         status: order.status,
+        paymentStatus: order.paymentStatus,
         address: {
           fullName: address.fullName,
           addressLine: address.addressLine,
@@ -253,9 +309,24 @@ exports.buyNow = async (req, res, next) => {
         total,
         shippingFee,
         paymentMethod,
+        status: ORDER_STATUS.PENDING,
+        paymentStatus: PAYMENT_STATUS.PENDING
       },
       { transaction }
     );
+
+    // Tạo bản ghi Payment với trạng thái đồng bộ với Order
+    await Payment.create({
+      OrderId: order.id,
+      paymentMethod: paymentMethod,
+      status: PAYMENT_STATUS.PENDING,
+      amount: total + shippingFee
+    }, { transaction });
+
+    // Cập nhật lại trạng thái Order để đồng bộ với Payment
+    await order.update({
+      paymentStatus: PAYMENT_STATUS.PENDING
+    }, { transaction });
 
     await OrderProduct.create(
       {
@@ -269,12 +340,23 @@ exports.buyNow = async (req, res, next) => {
     variant.stock -= quantity;
     await variant.save({ transaction });
 
-    console.log(`[OrderController - buyNow] Order ID: ${order.id}, Received paymentMethod: ${paymentMethod}. Preparing to check for email sending.`);
 
     const user = await User.findByPk(userId, { transaction });
     if (user && user.email) {
       if (paymentMethod === 'cod') {
-        await sendOrderConfirmationEmail(user.email, order.id, total, shippingFee);
+        await sendOrderConfirmationEmail(
+          user.email, 
+          order.id, 
+          total, 
+          shippingFee, 
+          paymentMethod,
+          [{
+            name: variant.Product.name,
+            quantity: quantity,
+            price: variant.Product.price,
+            image: variant.Product.ProductImages?.[0]?.url
+          }]
+        );
       }
     }
 
@@ -288,6 +370,7 @@ exports.buyNow = async (req, res, next) => {
         shippingFee: order.shippingFee,
         paymentMethod: order.paymentMethod,
         status: order.status,
+        paymentStatus: order.paymentStatus,
         address: {
           fullName: address.fullName,
           addressLine: address.addressLine,
@@ -305,6 +388,8 @@ exports.buyNow = async (req, res, next) => {
         ],
       },
     });
+
+    
   } catch (err) {
     await transaction.rollback();
     next(err);
@@ -495,7 +580,7 @@ exports.updateOrderStatus = async (req, res, next) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
-    const validStatuses = ['pending', 'completed', 'cancelled'];
+    const validStatuses = ['pending', 'completed', 'cancelled', 'refunded'];
     if (!validStatuses.includes(status)) {
       throw new AppError('invalid_status', 400);
     }
@@ -504,8 +589,21 @@ exports.updateOrderStatus = async (req, res, next) => {
     if (!order) {
       throw new AppError('order_not_found', 404);
     }
+
+    // Lấy trạng thái thanh toán tương ứng
+    const paymentStatus = getPaymentStatusForOrder(status);
+
+    // Cập nhật cả hai trường
     order.status = status;
+    order.paymentStatus = paymentStatus;
     await order.save();
+
+    // Cập nhật luôn bảng Payment nếu có
+    await Payment.update(
+      { status: paymentStatus },
+      { where: { OrderId: id } }
+    );
+
     res.json({
       message: 'Trạng thái đơn hàng đã được cập nhật thành công.',
       order,
@@ -768,6 +866,7 @@ exports.getOrderById = async (req, res, next) => {
       shippingFee: orderJSON.shippingFee,
       status: orderJSON.status,
       paymentMethod: orderJSON.paymentMethod,
+      paymentStatus: orderJSON.paymentStatus,
       createdAt: orderJSON.createdAt,
       User: {
         id: orderJSON.User.id,

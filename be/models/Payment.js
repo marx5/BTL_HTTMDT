@@ -20,13 +20,17 @@ const Payment = sequelize.define('Payment', {
     allowNull: false,
   },
   status: {
-    type: DataTypes.ENUM('pending', 'completed', 'failed'),
-    defaultValue: 'pending',
+    type: DataTypes.ENUM('PENDING', 'PAID', 'FAILED', 'CANCELLED', 'REFUNDED'),
+    defaultValue: 'PENDING',
   },
   amount: {
     type: DataTypes.FLOAT,
     allowNull: false,
   },
+  momoPaymentId: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  }
 });
 
 Payment.associate = (models) => {

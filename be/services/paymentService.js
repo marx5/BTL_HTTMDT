@@ -1,3 +1,4 @@
+const { sequelize } = require('../config/database');
 const { Order, Payment, PaymentLog } = require('../models');
 const { 
   PAYMENT_STATUS, 
@@ -18,21 +19,30 @@ class PaymentService {
     const transaction = await sequelize.transaction();
     
     try {
-      // Get order with current payment status
-      const order = await Order.findByPk(orderId, { transaction });
+      console.log('OrderId:', orderId);
+      const order = await Order.findByPk(orderId, { 
+        transaction,
+        include: [{
+          model: Payment,
+          as: 'Payment'
+        }]
+      });
+      
       if (!order) {
+        await transaction.rollback();
+        console.error('Order not found:', orderId);
         throw new Error('Order not found');
       }
+      console.log('Order paymentStatus:', order.paymentStatus, 'newStatus:', newStatus);
 
-      // Validate status transition
       if (!isValidStatusTransition(order.paymentStatus, newStatus)) {
+        await transaction.rollback();
+        console.error('Invalid status transition:', order.paymentStatus, '->', newStatus);
         throw new Error(`Invalid status transition from ${order.paymentStatus} to ${newStatus}`);
       }
 
-      // Get corresponding order status
       const orderStatus = getOrderStatusForPayment(newStatus);
 
-      // Update order status
       await order.update({
         paymentStatus: newStatus,
         status: orderStatus,
@@ -47,39 +57,32 @@ class PaymentService {
         }
       }, { transaction });
 
-      // Create payment log
-      await PaymentLog.create({
-        orderId,
-        fromStatus: order.paymentStatus,
-        toStatus: newStatus,
-        transactionInfo,
-        timestamp: new Date()
-      }, { transaction });
-
-      // If payment is successful, update payment record
-      if (newStatus === PAYMENT_STATUS.PAID) {
-        await Payment.update(
-          {
-            status: PAYMENT_STATUS.PAID,
-            transactionDetails: transactionInfo
-          },
-          {
-            where: { OrderId: orderId },
-            transaction
-          }
-        );
-      }
+      await Payment.update(
+        {
+          status: newStatus,
+          transactionDetails: transactionInfo
+        },
+        {
+          where: { OrderId: orderId },
+          transaction
+        }
+      );
 
       await transaction.commit();
       
       return {
         success: true,
         order: await Order.findByPk(orderId, {
-          include: [Payment]
+          include: [{
+            model: Payment,
+            as: 'Payment'
+          }]
         })
       };
     } catch (error) {
-      await transaction.rollback();
+      if (transaction && !transaction.finished) {
+        await transaction.rollback();
+      }
       throw error;
     }
   }
@@ -115,9 +118,43 @@ class PaymentService {
   }
 
   /**
-   * Maps payment gateway status to our internal status
-   * @param {string} gatewayStatus - Status from payment gateway
-   * @returns {string} Our internal payment status
+   * Cập nhật trạng thái thanh toán từ cổng thanh toán
+   * @param {number} orderId - ID đơn hàng
+   * @param {string} gatewayStatus - Trạng thái từ cổng thanh toán
+   * @param {Object} transactionInfo - Thông tin giao dịch
+   * @returns {Promise<Object>} Kết quả cập nhật
+   */
+  async handleGatewayPaymentStatus(orderId, gatewayStatus, transactionInfo = {}) {
+    try {
+      const internalStatus = this.mapGatewayStatus(gatewayStatus);
+      const order = await Order.findByPk(orderId, {
+        include: [{
+          model: Payment,
+          as: 'Payment'
+        }]
+      });
+      
+      if (!order) {
+        throw new Error('Order not found');
+      }
+
+      const result = await this.updatePaymentStatus(orderId, internalStatus, {
+        ...transactionInfo,
+        gatewayStatus,
+        timestamp: new Date()
+      });
+
+      return result;
+    } catch (error) {
+      console.error('Error in handleGatewayPaymentStatus:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Chuyển đổi trạng thái từ cổng thanh toán sang trạng thái nội bộ
+   * @param {string} gatewayStatus - Trạng thái từ cổng thanh toán
+   * @returns {string} Trạng thái nội bộ
    */
   mapGatewayStatus(gatewayStatus) {
     const statusMap = {
