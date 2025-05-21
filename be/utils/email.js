@@ -217,7 +217,27 @@ exports.sendResetPasswordEmail = async (to, resetLink) => {
   await transporter.sendMail(mailOptions);
 };
 
-exports.sendOrderConfirmationEmail = async (to, orderId, total, shippingFee) => {
+exports.sendOrderConfirmationEmail = async (to, orderId, total, shippingFee, paymentMethod, items) => {
+  // Chuyển đổi paymentMethod thành text dễ đọc
+  const paymentMethodText = {
+    'cod': 'Thanh toán khi nhận hàng (COD)',
+    'vnpay': 'Thanh toán qua VNPay',
+    'momo': 'Thanh toán qua MoMo'
+  }[paymentMethod] || 'Thanh toán khi nhận hàng (COD)';
+
+  // Tạo HTML cho danh sách sản phẩm
+  const itemsHtml = items.map(item => `
+    <tr>
+      <td style="padding: 10px; border-bottom: 1px solid #eee;">
+        <img src="${item.image || 'https://via.placeholder.com/50'}" alt="${item.name}" style="width: 50px; height: 50px; object-fit: cover;">
+      </td>
+      <td style="padding: 10px; border-bottom: 1px solid #eee;">${item.name}</td>
+      <td style="padding: 10px; border-bottom: 1px solid #eee;">${item.quantity}</td>
+      <td style="padding: 10px; border-bottom: 1px solid #eee;">${item.price.toLocaleString('vi-VN')} VND</td>
+      <td style="padding: 10px; border-bottom: 1px solid #eee;">${(item.price * item.quantity).toLocaleString('vi-VN')} VND</td>
+    </tr>
+  `).join('');
+
   const mailOptions = {
     from: `"Fashion Store" <${process.env.EMAIL_USER}>`,
     to,
@@ -277,6 +297,21 @@ exports.sendOrderConfirmationEmail = async (to, orderId, total, shippingFee) => 
             margin: 5px 0;
             font-size: 16px;
           }
+          .products-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+          }
+          .products-table th {
+            background-color: #f8f9fa;
+            padding: 10px;
+            text-align: left;
+            border-bottom: 2px solid #ddd;
+          }
+          .products-table td {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+          }
           .footer {
             text-align: center;
             padding-top: 20px;
@@ -302,12 +337,37 @@ exports.sendOrderConfirmationEmail = async (to, orderId, total, shippingFee) => 
             <h2>Xác nhận đơn hàng của bạn</h2>
             <p>Xin chào,</p>
             <p>Cảm ơn bạn đã đặt hàng tại Fashion Store! Đơn hàng của bạn đã được ghi nhận thành công. Dưới đây là thông tin chi tiết về đơn hàng của bạn:</p>
+            
             <div class="order-details">
               <p><strong>ID đơn hàng:</strong> #${orderId}</p>
-              <p><strong>Tổng tiền:</strong> ${total.toLocaleString('vi-VN')} VND</p>
-              <p><strong>Phí vận chuyển:</strong> ${shippingFee.toLocaleString('vi-VN')} VND</p>
-              <p><strong>Tổng thanh toán:</strong> ${(total + shippingFee).toLocaleString('vi-VN')} VND</p>
+              <p><strong>Phương thức thanh toán:</strong> ${paymentMethodText}</p>
             </div>
+
+            <table class="products-table">
+              <thead>
+                <tr>
+                  <th>Hình ảnh</th>
+                  <th>Tên sản phẩm</th>
+                  <th>Số lượng</th>
+                  <th>Đơn giá</th>
+                  <th>Thành tiền</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${itemsHtml}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td colspan="4" style="text-align: right;"><strong>Phí vận chuyển:</strong></td>
+                  <td>${shippingFee.toLocaleString('vi-VN')} VND</td>
+                </tr>
+                <tr>
+                  <td colspan="4" style="text-align: right;"><strong>Tổng thanh toán:</strong></td>
+                  <td><strong>${(total + shippingFee).toLocaleString('vi-VN')} VND</strong></td>
+                </tr>
+              </tfoot>
+            </table>
+
             <p>Chúng tôi sẽ xử lý đơn hàng của bạn trong thời gian sớm nhất. Bạn có thể theo dõi trạng thái đơn hàng trong tài khoản của mình.</p>
           </div>
           <div class="footer">
