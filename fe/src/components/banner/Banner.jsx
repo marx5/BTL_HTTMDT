@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 
 const Banner = ({ banners }) => {
@@ -7,8 +7,10 @@ const Banner = ({ banners }) => {
   const [touchEnd, setTouchEnd] = useState(null);
   const bannerRef = useRef(null);
 
-  // Kiểm tra và chuyển đổi dữ liệu banners thành mảng
-  const bannerList = Array.isArray(banners) ? banners : [];
+  // Wrap bannerList trong useMemo
+  const bannerList = useMemo(() => {
+    return Array.isArray(banners) ? banners : [];
+  }, [banners]);
 
   // Hàm xử lý vuốt
   const handleTouchStart = (e) => {

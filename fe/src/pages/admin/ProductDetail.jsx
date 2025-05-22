@@ -4,11 +4,13 @@ import useApi from '../../hooks/useApi';
 import { getProductById } from '../../services/adminProduct';
 import Loader from '../../components/common/Loader';
 import { Link } from 'react-router-dom';
-
+import useTitle from '../../hooks/useTitle';
 const IMG_BASE_URL = process.env.REACT_APP_IMG_URL;
 
 
 const ProductDetail = () => {
+  // Set tiêu đề trang
+  useTitle('Chi tiết sản phẩm');
   const { id } = useParams();
   const { data: product, loading, error, callApi: fetchProduct } = useApi();
 

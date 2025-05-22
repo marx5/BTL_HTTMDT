@@ -1,17 +1,58 @@
-const { Op } = require('sequelize');
-const Product = require('../models/Product');
-const ProductVariant = require('../models/ProductVariant');
-const ProductImage = require('../models/ProductImage');
-const Category = require('../models/Category');
-const multer = require('multer');
-const path = require('path');
-const AppError = require('../utils/appError');
-const Joi = require('joi');
+const { Op } = require('sequelize'); // Op để query dữ liệu
+const Product = require('../models/Product'); // Product để tạo sản phẩm
+const ProductVariant = require('../models/ProductVariant'); // ProductVariant để tạo biến thể sản phẩm
+const ProductImage = require('../models/ProductImage'); // ProductImage để tạo ảnh sản phẩm
+const Category = require('../models/Category'); // Category để tạo danh mục sản phẩm
+const multer = require('multer'); // multer để upload ảnh
+const path = require('path'); // path để xử lý đường dẫn file
+const AppError = require('../utils/appError'); // AppError để xử lý lỗi
+const Joi = require('joi'); // Joi để validate dữ liệu
+const fs = require('fs').promises; // fs.promises để đổi tên file
+const { v4: uuidv4 } = require('uuid'); // uuid để tạo id sản phẩm tạm thời
+
+// Biến đếm upload cho từng request (chỉ dùng cho cập nhật)
+let uploadCounter = {};
 
 const storage = multer.diskStorage({
   destination: './uploads/',
-  filename: (req, file, cb) => {
-    cb(null, `${Date.now()}-${file.originalname}`);
+  filename: async (req, file, cb) => {
+    try {
+      const ext = path.extname(file.originalname).toLowerCase();
+
+      if (!req.params.id) { // << TẠO SẢN PHẨM MỚI
+        // Tạo tên file tạm thời duy nhất bằng UUID
+        const tempFilename = `${uuidv4()}${ext}`;
+        
+        // Lưu thông tin file tạm để xử lý sau khi tạo sản phẩm
+        // req.files sẽ chứa thông tin từ multer, bao gồm cả 'filename' mà chúng ta vừa cb() ở dưới
+        // Không cần req.uploadedFilesInfo riêng nữa nếu dùng req.files[i].filename và req.files[i].path
+        // Không cần req.uploadedFilesInfo riêng nữa nếu dùng req.files[i].filename và req.files[i].path
+        cb(null, tempFilename);
+      } else { // << CẬP NHẬT SẢN PHẨM ĐÃ CÓ (logic này giữ nguyên)
+        let productId = req.params.id;
+
+        // Tạo key duy nhất cho mỗi lần upload (theo productId + thời gian)
+        if (!req._uploadKey) {
+          req._uploadKey = `${productId}_${Date.now()}`;
+        }
+        const uploadKey = req._uploadKey;
+        if (!uploadCounter[uploadKey]) uploadCounter[uploadKey] = 1;
+        else uploadCounter[uploadKey]++;
+
+        // Đếm số ảnh hiện có nếu là cập nhật
+        let index = uploadCounter[uploadKey];
+        const existingImages = await ProductImage.count({ where: { ProductId: productId } });
+        index += existingImages;
+
+        const newFilename = `Sanpham${productId}_${index}${ext}`;
+        cb(null, newFilename);
+
+        // Xóa biến đếm sau khi upload xong (dọn dẹp)
+        setTimeout(() => { delete uploadCounter[uploadKey]; }, 10000);
+      }
+    } catch (error) {
+      cb(error);
+    }
   },
 });
 
@@ -26,7 +67,7 @@ const upload = multer({
     }
     cb(new Error('only_images_allowed'));
   },
-}).array('images', 5);
+}).array('images', 15);
 
 exports.uploadImages = (req, res, next) => {
   upload(req, res, (err) => {
@@ -113,55 +154,124 @@ exports.getProductById = async (req, res, next) => {
 
 exports.createProduct = async (req, res, next) => {
   try {
-    const { name, description, price, categoryId, variants, mainImageId } = req.body;
-    const product = await Product.create({ name, description, price, CategoryId: categoryId });
+    const { name, description, price, categoryId, variants, mainImageId } = req.body; // mainImageId ở đây nên là originalname của file ảnh chính
 
+    // 1. Tạo sản phẩm "thật" trước tiên
+    const product = await Product.create({
+      name,
+      description,
+      price,
+      CategoryId: categoryId,
+      isActive: true // Mặc định sản phẩm mới là active
+    });
+    const realProductId = product.id;
+
+    const createdImageRecords = []; // Để lưu các bản ghi ProductImage đã tạo
+
+    // 2. Xử lý các file ảnh đã upload (nếu có)
+    if (req.files && req.files.length > 0) {
+      for (let i = 0; i < req.files.length; i++) {
+        const fileFromMulter = req.files[i]; // file.filename ở đây là tên tạm (UUID.ext)
+        const originalFileExtension = path.extname(fileFromMulter.originalname).toLowerCase();
+        
+        const imageIndex = i + 1; // Chỉ số đơn giản cho ảnh của sản phẩm mới
+        const finalFilename = `Sanpham${realProductId}_${imageIndex}${originalFileExtension}`;
+        const finalPathInUploadsDir = path.join('./uploads/', finalFilename);
+
+        try {
+          // Đổi tên file từ tên tạm (do multer lưu) sang tên cuối cùng
+          // fileFromMulter.path là đường dẫn đầy đủ của file tạm multer đã lưu
+          await fs.rename(fileFromMulter.path, finalPathInUploadsDir);
+
+          // Tạo bản ghi ProductImage trong database
+          const productImageRecord = await ProductImage.create({
+            ProductId: realProductId,
+            url: `/uploads/${finalFilename}`, // Lưu đường dẫn tương đối
+            isMain: false, // Mặc định tất cả không phải ảnh chính ban đầu
+          });
+          createdImageRecords.push(productImageRecord);
+        } catch (fileProcessingError) {
+          console.error(`Lỗi xử lý file ${fileFromMulter.originalname}:`, fileProcessingError);
+          // Cân nhắc: Xóa file đã upload nếu không đổi tên được, hoặc đánh dấu lỗi
+          // throw new AppError('Lỗi trong quá trình xử lý ảnh upload.', 500); // Hoặc xử lý nhẹ nhàng hơn
+        }
+      }
+    }
+
+    // 3. Thiết lập ảnh chính
+    if (createdImageRecords.length > 0) {
+      let imageToSetAsMain = null;
+      if (mainImageId && typeof mainImageId === 'string' && req.files) {
+        // Tìm bản ghi ảnh tương ứng với originalname mà client gửi lên là mainImageId
+        const mainFileOriginalName = mainImageId;
+        const mainFileUploadedIndex = req.files.findIndex(f => f.originalname === mainFileOriginalName);
+        
+        if (mainFileUploadedIndex !== -1 && createdImageRecords[mainFileUploadedIndex]) {
+          // Kiểm tra xem file đó có được xử lý thành công và có trong createdImageRecords không
+          // (index của createdImageRecords có thể không khớp hoàn toàn nếu có lỗi xảy ra với 1 file nào đó)
+          // Cách an toàn hơn là tìm trong createdImageRecords dựa trên url (nếu biết cách map originalname -> finalFilename -> url)
+          // Tuy nhiên, nếu tất cả file được xử lý tuần tự và thành công, index sẽ khớp.
+          // Để đơn giản, giả sử mainFileUploadedIndex hợp lệ cho createdImageRecords
+          const potentialMainImage = createdImageRecords.find(imgRec => {
+              const expectedSuffix = `_${mainFileUploadedIndex + 1}${path.extname(req.files[mainFileUploadedIndex].originalname).toLowerCase()}`;
+              return imgRec.url.endsWith(expectedSuffix) && imgRec.url.includes(`/Sanpham${realProductId}_`);
+          });
+          if(potentialMainImage) imageToSetAsMain = potentialMainImage;
+
+        }
+      }
+
+      if (imageToSetAsMain) {
+        await imageToSetAsMain.update({ isMain: true });
+      } else {
+        // Nếu không có mainImageId hợp lệ, hoặc không tìm thấy, mặc định lấy ảnh đầu tiên
+        await createdImageRecords[0].update({ isMain: true });
+      }
+    }
+
+    // 4. Xử lý variants (logic này giữ nguyên, chỉ đảm bảo dùng realProductId)
     if (variants) {
       const parsedVariants = JSON.parse(variants);
       for (const variant of parsedVariants) {
         await ProductVariant.create({
-          ProductId: product.id,
+          ProductId: realProductId, // Sử dụng ID sản phẩm thật
           size: variant.size,
           color: variant.color,
           stock: variant.stock,
         });
       }
     }
-
-    // Đầu tiên tạo tất cả ảnh với isMain = false
-    if (req.files) {
-      for (const file of req.files) {
-        await ProductImage.create({
-          ProductId: product.id,
-          url: `/uploads/${file.filename}`,
-          isMain: false,
-        });
-      }
-    }
-
-    // Sau đó cập nhật ảnh chính nếu có
-    if (mainImageId) {
-      await ProductImage.update(
-        { isMain: true },
-        { where: { id: mainImageId, ProductId: product.id } }
-      );
-    } else if (req.files && req.files.length > 0) {
-      // Nếu không chọn ảnh chính, lấy ảnh đầu tiên làm ảnh chính
-      const firstImage = await ProductImage.findOne({
-        where: { ProductId: product.id },
-        order: [['id', 'ASC']]
-      });
-      if (firstImage) {
-        await firstImage.update({ isMain: true });
-      }
-    }
+    
+    // Lấy lại thông tin sản phẩm đầy đủ để trả về
+    const finalProductDetails = await Product.findByPk(realProductId, {
+        include: [
+            { model: ProductImage, as: 'ProductImages' },
+            { model: ProductVariant, as: 'ProductVariants' },
+            { model: Category, as: 'Category' },
+        ]
+    });
 
     res.status(201).json({
       message: 'Sản phẩm đã được tạo thành công.',
-      product,
+      product: finalProductDetails,
     });
+
   } catch (err) {
     console.error('Error in createProduct:', err);
+    // QUAN TRỌNG: Xử lý lỗi và dọn dẹp file
+    // Nếu có lỗi xảy ra sau khi file đã được upload nhưng trước khi hoàn tất,
+    // bạn có thể còn lại các file tạm trong thư mục uploads.
+    if (req.files && req.files.length > 0 && !res.headersSent) {
+        for (const file of req.files) {
+            if (file.path) { // file.path là nơi multer đã lưu file tạm
+                try {
+                    await fs.unlink(file.path); 
+                } catch (cleanupError) {
+                    console.error('Lỗi dọn dẹp file tạm:', file.path, cleanupError);
+                }
+            }
+        }
+    }
     next(err);
   }
 };
@@ -195,8 +305,8 @@ exports.updateProduct = async (req, res, next) => {
     if (files && files.length > 0) {
       // Thêm ảnh mới
       const newImages = files.map((file) => ({
-        url: file.filename,
-        isMain: false, // Mặc định ảnh mới không phải ảnh chính
+        url: `/uploads/${file.filename}`,
+        isMain: false,
         ProductId: product.id,
       }));
 

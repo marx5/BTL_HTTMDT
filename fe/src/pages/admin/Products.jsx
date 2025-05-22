@@ -15,6 +15,7 @@ import { getCategories } from '../../services/adminCategory';
 import toast from 'react-hot-toast';
 import Modal from 'react-modal';
 import { Link } from 'react-router-dom';
+import useTitle from '../../hooks/useTitle';
 
 Modal.setAppElement('#root');
 
@@ -42,6 +43,9 @@ const getProductImage = (product) => {
 };
 
 const Products = () => {
+  // Set tiêu đề trang
+  useTitle('Quản lý sản phẩm');
+
   const {
     data: productsData,
     loading,

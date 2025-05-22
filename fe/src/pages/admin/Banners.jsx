@@ -9,11 +9,15 @@ import {
 import { getProducts } from '../../services/adminProduct';
 import toast from 'react-hot-toast';
 import Modal from 'react-modal';
-
+import useTitle from '../../hooks/useTitle';
 // Bind modal to app element for accessibility
 Modal.setAppElement('#root');
 
+
 const Banners = () => {
+  // Set tiêu đề trang
+  useTitle('Quản lý banner');
+
   const { data: bannersData, loading, error, callApi: fetchBanners } = useApiWithToken();
   const { data: productsData, callApi: fetchProducts } = useApiWithToken();
   const [page, setPage] = useState(1);
@@ -98,6 +102,7 @@ const Banners = () => {
       fetchBanners(() => getBanners(page, limit));
       closeModal();
     } catch (err) {
+      console.error('Error submitting form:', err);
       toast.error(err.message || 'Có lỗi xảy ra khi lưu banner.');
     }
   };
@@ -118,7 +123,7 @@ const Banners = () => {
     return <div className="text-red-500 text-center mt-10">{error}</div>;
 
   // Lấy danh sách banner từ data.data
-  const banners = bannersData?.data?.data || [];
+  const banners = bannersData?.data || [];
 
   return (
       <div className="bg-white p-6 rounded-lg shadow-md">
@@ -153,7 +158,7 @@ const Banners = () => {
                     <td className="py-2 px-4 border-b">
                       {banner.imageUrl ? (
                         <img
-                          src={`http://localhost:3456/${banner.imageUrl}`}
+                          src={`http://localhost:3456/${banner.imageUrl.replace(/\\/g, '/')}`}
                           alt="Banner"
                           className="w-32 h-16 object-cover rounded"
                         />
@@ -247,13 +252,13 @@ const Banners = () => {
                 name="productId"
                 value={formData.productId}
                 onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md"
                 required
               >
-              <option value="">-- Chọn sản phẩm --</option>
-              {productsData?.data?.data?.map((product) => (
-                  <option key={product.id} value={product.id}>
-                    {product.name}
+                <option value="">-- Chọn sản phẩm --</option>
+                {productsData?.products?.map((product) => (
+                                    <option key={product.id} value={product.id}>
+                                        {product.name}
                   </option>
                 ))}
               </select>

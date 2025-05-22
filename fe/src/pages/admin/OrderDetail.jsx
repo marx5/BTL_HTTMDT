@@ -4,8 +4,11 @@ import useApi from '../../hooks/useApi';
 import { useAuth } from '../../context/AuthContext';
 import { getOrderById, updateOrderStatus } from '../../services/adminOrder';
 import toast from 'react-hot-toast';
-
+import useTitle from '../../hooks/useTitle';
 const OrderDetail = () => {
+  // Set tiêu đề trang
+  useTitle('Chi tiết đơn hàng');
+
   const { id } = useParams();
   const { token } = useAuth();
   const { data: orderData, loading, error, callApi: fetchOrder } = useApi();
@@ -94,6 +97,7 @@ const OrderDetail = () => {
                 <option value="shipped">Đã giao</option>
                 <option value="delivered">Đã nhận</option>
                 <option value="cancelled">Đã hủy</option>
+                <option value="refunded">Đã hoàn trả</option>
               </select>
               <button
                 onClick={handleUpdateStatus}

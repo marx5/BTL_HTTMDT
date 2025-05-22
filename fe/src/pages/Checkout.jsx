@@ -5,15 +5,12 @@ import useCart from '../hooks/useCart';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-hot-toast';
 import { createOrder, buyNow } from '../services/order';
-import { createCodPayment } from '../services/payment';
+import { createCodPayment, createVNPayPayment, createMomoPayment } from '../services/payment';
 import Button from '../components/common/Button';
 import AddressForm from '../components/address/AddressForm';
-import AddressList from '../components/address/AddressList';
 import useTitle from '../hooks/useTitle';
 import { fetchAddresses } from '../redux/slices/addressSlice';
-import CartSummary from '../components/cart/CartSummary';
 import { showSuccess, showError } from '../utils/notification';
-import useApi from '../hooks/useApi';
 import { getProductById } from '../services/product';
 import Loader from '../components/common/Loader';
 
@@ -349,12 +346,12 @@ const Checkout = () => {
 
     // Kiểm tra giỏ hàng hoặc sản phẩm mua ngay
     if (!isBuyNow && (!selectedItems || selectedItems.length === 0)) {
-        toast.error('Giỏ hàng của bạn đang trống hoặc chưa chọn sản phẩm nào.');
-        return;
+      toast.error('Giỏ hàng của bạn đang trống hoặc chưa chọn sản phẩm nào.');
+      return;
     }
     if (isBuyNow && !buyNowItem) {
-        toast.error('Không có thông tin sản phẩm để mua ngay.');
-        return;
+      toast.error('Không có thông tin sản phẩm để mua ngay.');
+      return;
     }
 
     setIsProcessing(true);
@@ -369,18 +366,18 @@ const Checkout = () => {
           ProductVariantId: buyNowItem.variantId,
           quantity: buyNowItem.quantity,
           addressId: selectedAddress.id,
-          paymentMethod: 'cod' // CHỈ CÓ COD
+          paymentMethod: paymentMethod
         };
       } else {
         orderData = {
           addressId: selectedAddress.id,
-          paymentMethod: 'cod' // CHỈ CÓ COD
+          paymentMethod: paymentMethod
         };
       }
       
       console.log("Order data being sent to API:", orderData);
 
-      // BƯỚC 2: TẠO ĐƠN HÀNG TRÊN BACKEND (CHUNG CHO MỌI PHƯƠNG THỨC)
+      // BƯỚC 2: TẠO ĐƠN HÀNG TRÊN BACKEND
       let orderResponse;
       if (isBuyNow) {
         console.log('Calling buyNow API with:', orderData);
@@ -397,32 +394,63 @@ const Checkout = () => {
       }
       
       const orderId = orderResponse.order.id;
-      localStorage.setItem('latestOrderId', orderId); // Lưu orderId mới nhất
+      localStorage.setItem('latestOrderId', orderId);
 
-      // BƯỚC 3: XỬ LÝ THANH TOÁN (CHỈ CÓ COD)
-      toast.dismiss(); // Xóa toast loading trước đó
-      console.log('Processing COD payment for order:', orderId);
-      
-      // Gọi API backend để xác nhận đơn hàng COD (nếu cần, backend có thể tự động làm việc này)
-      // Hiện tại, createCodPayment không làm gì nhiều ở frontend ngoài việc thông báo
-      const codResponse = await createCodPayment({ orderId }, token);
-      console.log('COD payment response:', codResponse);
+      // BƯỚC 3: XỬ LÝ THANH TOÁN
+      toast.dismiss();
 
-      if (codResponse && codResponse.message) {
-          showSuccess(codResponse.message || 'Đơn hàng COD đã được tạo thành công!');
+      if (paymentMethod === 'vnpay') {
+        // Xử lý thanh toán VNPay
+        const totalAmount = orderResponse.order.total + orderResponse.order.shippingFee;
+        const paymentData = {
+          orderId: orderId,
+          amount: totalAmount,
+          orderDescription: `Thanh toan don hang ${orderId}`
+        };
+        
+        const vnpayResponse = await createVNPayPayment(paymentData);
+        if (vnpayResponse.success && vnpayResponse.url) {
+          window.location.href = vnpayResponse.url;
+          return;
+        } else {
+          throw new Error('Không thể tạo thanh toán VNPay');
+        }
+      } else if (paymentMethod === 'momo') {
+        // Xử lý thanh toán MoMo
+        const totalAmount = orderResponse.order.total + orderResponse.order.shippingFee;
+        const paymentData = {
+          orderId: orderId,
+          amount: totalAmount,
+          orderDescription: `Thanh toan don hang ${orderId}`,
+          paymentMethod: 'momo'
+        };
+        
+        const momoResponse = await createMomoPayment(paymentData);
+        if (momoResponse.status === 'success' && momoResponse.approvalUrl) {
+          window.location.href = momoResponse.approvalUrl;
+          return;
+        } else {
+          throw new Error('Không thể tạo thanh toán MoMo');
+        }
       } else {
-          showSuccess('Đơn hàng COD đã được tạo thành công!');
-      }
-      
-      // Dọn dẹp localStorage cho buyNow
-      if (isBuyNow) {
-          localStorage.removeItem('buyNowItem');
-      }
-      
-      // Xóa các mục đã chọn khỏi Redux (nếu là từ giỏ hàng)
-      // dispatch(clearSelectedItems()); // Nếu có action này
+        // Xử lý thanh toán COD
+        console.log('Processing COD payment for order:', orderId);
+        const codResponse = await createCodPayment({ orderId }, token);
+        console.log('COD payment response:', codResponse);
 
-      navigate(`/order-confirmation/${orderId}?payment_method=cod`);
+        if (codResponse && codResponse.message) {
+          showSuccess(codResponse.message || 'Đơn hàng COD đã được tạo thành công!');
+        } else {
+          showSuccess('Đơn hàng COD đã được tạo thành công!');
+        }
+        
+        // Dọn dẹp localStorage cho buyNow
+        if (isBuyNow) {
+          localStorage.removeItem('buyNowItem');
+        }
+
+        navigate(`/order-confirmation/${orderId}?payment_method=cod`);
+      }
 
     } catch (err) {
       toast.dismiss();
@@ -446,6 +474,52 @@ const Checkout = () => {
   
   const handleRefresh = () => {
     window.location.reload();
+  };
+
+  const handleVNPayPayment = async () => {
+    try {
+      if (!selectedAddress) {
+        toast.error('Vui lòng chọn địa chỉ giao hàng');
+        return;
+      }
+
+      // Tạo đơn hàng trước
+      const orderData = {
+        addressId: selectedAddress.id,
+        paymentMethod: 'vnpay'
+      };
+
+      let orderResponse;
+      if (isBuyNow) {
+        orderResponse = await buyNow(orderData, token);
+      } else {
+        orderResponse = await createOrder(orderData, token);
+      }
+
+      if (!orderResponse || !orderResponse.order || !orderResponse.order.id) {
+        throw new Error('Không thể tạo đơn hàng');
+      }
+
+      const orderId = orderResponse.order.id;
+      const totalAmount = orderResponse.order.total + orderResponse.order.shippingFee;
+
+      // Tạo thanh toán VNPay
+      const paymentData = {
+        orderId: orderId,
+        amount: totalAmount,
+        orderDescription: `Thanh toan don hang ${orderId}`
+      };
+      
+      const response = await createVNPayPayment(paymentData);
+      if (response.success && response.url) {
+        window.location.href = response.url;
+      } else {
+        throw new Error('Không thể tạo thanh toán VNPay');
+      }
+    } catch (error) {
+      console.error('Error initiating VNPay payment:', error);
+      toast.error(error.message || 'Có lỗi xảy ra khi tạo thanh toán VNPay');
+    }
   };
 
   // Hiển thị lỗi nếu có
@@ -746,6 +820,46 @@ const Checkout = () => {
                   </span>
                   <span className="block text-sm text-gray-500">
                     Thanh toán bằng tiền mặt khi nhận hàng
+                  </span>
+                </label>
+              </div>
+
+              <div className="flex items-center">
+                <input
+                  type="radio"
+                  id="vnpay"
+                  name="payment"
+                  value="vnpay"
+                  checked={paymentMethod === 'vnpay'}
+                  onChange={(e) => setPaymentMethod(e.target.value)}
+                  className="h-4 w-4 text-primary focus:ring-primary border-gray-300"
+                />
+                <label htmlFor="vnpay" className="ml-3">
+                  <span className="block text-sm font-medium text-gray-900">
+                    Thanh toán qua VNPay
+                  </span>
+                  <span className="block text-sm text-gray-500">
+                    Thanh toán trực tuyến qua cổng thanh toán VNPay
+                  </span>
+                </label>
+              </div>
+
+              <div className="flex items-center">
+                <input
+                  type="radio"
+                  id="momo"
+                  name="payment"
+                  value="momo"
+                  checked={paymentMethod === 'momo'}
+                  onChange={(e) => setPaymentMethod(e.target.value)}
+                  className="h-4 w-4 text-primary focus:ring-primary border-gray-300"
+                />
+                <label htmlFor="momo" className="ml-3">
+                  <span className="block text-sm font-medium text-gray-900">
+                    Thanh toán qua MoMo
+                  </span>
+                  <span className="block text-sm text-gray-500">
+                    Thanh toán trực tuyến qua ví MoMo
                   </span>
                 </label>
               </div>

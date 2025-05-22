@@ -8,10 +8,12 @@ import {
 } from '../../services/adminCategory';
 import { showSuccess, showError } from '../../utils/notification';
 import Modal from 'react-modal';
-
+import useTitle from '../../hooks/useTitle';
 Modal.setAppElement('#root');
 
 const Categories = () => {
+  // Set tiêu đề trang
+  useTitle('Quản lý danh mục');
   const {
     data: categoriesData,
     loading,

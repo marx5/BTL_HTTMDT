@@ -21,6 +21,7 @@ const OrderConfirmation = () => {
       try {
         const response = await getOrderById(id, token);
         setOrder(response);
+        console.log(response);
       } catch (err) {
         setError('Không thể tải thông tin đơn hàng');
         toast.error('Không thể tải thông tin đơn hàng');
@@ -60,28 +61,14 @@ const OrderConfirmation = () => {
   // Xác định trạng thái đơn hàng và thông điệp hiển thị
   let orderStatus = {
     iconColor: 'green',
-    title: 'Đơn hàng của bạn đã được xác nhận!',
-    message: 'Cảm ơn bạn đã mua hàng. Chúng tôi sẽ gửi email xác nhận đến bạn sớm.',
+    title: 'Đặt hàng thành công!',
+    message: 'Đơn hàng của bạn đang được xử lý.',
     icon: (
       <svg className="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
       </svg>
     )
   };
-
-  // Nếu đơn hàng đang chờ thanh toán
-  if (paymentStatus === 'pending' || order.paymentStatus === 'PENDING') {
-    orderStatus = {
-      iconColor: 'yellow',
-      title: 'Đơn hàng đang chờ thanh toán!',
-      message: 'Vui lòng hoàn tất thanh toán trong tab đã mở hoặc kiểm tra email của bạn.',
-      icon: (
-        <svg className="w-8 h-8 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-      )
-    };
-  }
 
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
@@ -97,15 +84,6 @@ const OrderConfirmation = () => {
             <p className="text-gray-600">
               {orderStatus.message}
             </p>
-            
-            {paymentStatus === 'pending' && (
-              <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                <p className="text-yellow-800">
-                  <strong>Lưu ý:</strong> Đơn hàng của bạn sẽ được xử lý sau khi việc thanh toán được hoàn tất.
-                  Nếu bạn đã đóng cổng thanh toán, bạn có thể thanh toán lại từ trang Chi tiết đơn hàng.
-                </p>
-              </div>
-            )}
           </div>
 
           <div className="border-t border-gray-200 pt-6">
@@ -143,7 +121,11 @@ const OrderConfirmation = () => {
                 <p className="mt-1 text-sm text-gray-900">
                   {order.paymentMethod === 'cod'
                     ? 'Thanh toán khi nhận hàng'
-                    : order.paymentMethod}
+                    : order.paymentMethod === 'vnpay'
+                    ? 'VNPay'
+                    : order.paymentMethod === 'momo'
+                    ? 'Momo'
+                    : ''}
                 </p>
                 <p className={`text-sm mt-1 ${
                   order.paymentStatus === 'PAID' ? 'text-green-600' : 
@@ -230,3 +212,4 @@ const OrderConfirmation = () => {
 };
 
 export default OrderConfirmation;
+ 

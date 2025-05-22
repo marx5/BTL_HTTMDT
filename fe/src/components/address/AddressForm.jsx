@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useSelector } from 'react-redux';
 import { addAddress, updateAddress } from '../../services/address';
 import Button from '../common/Button';
@@ -105,7 +105,7 @@ const AddressForm = ({ address, onSuccess, onCancel }) => {
   };
 
   // API để lấy quận/huyện dựa trên tỉnh/thành phố đã chọn
-  const fetchDistricts = async (provinceName) => {
+  const fetchDistricts = useCallback(async (provinceName) => {
     setLoadingAddress(true);
     try {
       const province = addressOptions.provinces.find(p => p.name === provinceName);
@@ -122,17 +122,17 @@ const AddressForm = ({ address, onSuccess, onCancel }) => {
     } finally {
       setLoadingAddress(false);
     }
-  };
+  }, [addressOptions.provinces]);
 
   // Tải lại dữ liệu districts khi province thay đổi
   useEffect(() => {
     if (selectedAddress.province && addressOptions.provinces.length > 0) {
       fetchDistricts(selectedAddress.province);
     }
-  }, [selectedAddress.province, addressOptions.provinces]);
+  }, [selectedAddress.province, addressOptions.provinces, fetchDistricts]);
 
   // API để lấy phường/xã dựa trên quận/huyện đã chọn
-  const fetchWards = async (districtName) => {
+  const fetchWards = useCallback(async (districtName) => {
     setLoadingAddress(true);
     try {
       const province = addressOptions.provinces.find(p => p.name === selectedAddress.province);
@@ -152,14 +152,14 @@ const AddressForm = ({ address, onSuccess, onCancel }) => {
     } finally {
       setLoadingAddress(false);
     }
-  };
+  }, [addressOptions.provinces, addressOptions.districts, selectedAddress.province]);
 
   // Tải lại dữ liệu wards khi districts thay đổi
   useEffect(() => {
     if (selectedAddress.district && addressOptions.districts.length > 0) {
       fetchWards(selectedAddress.district);
     }
-  }, [selectedAddress.district, addressOptions.districts]);
+  }, [selectedAddress.district, addressOptions.districts, fetchWards]);
 
   // Kiểm tra xác thực form
   const validateForm = () => {

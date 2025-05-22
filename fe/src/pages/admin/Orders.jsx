@@ -8,8 +8,11 @@ import {
   updateOrderStatus,
 } from '../../services/adminOrder';
 import toast from 'react-hot-toast';
-
+import useTitle from '../../hooks/useTitle';
 const Orders = () => {
+  // Set tiêu đề trang
+  useTitle('Quản lý đơn hàng');
+
   const { token } = useAuth();
   const { data: ordersData, loading, error, callApi: fetchOrders } = useApi();
   const [page, setPage] = useState(1);
@@ -100,6 +103,7 @@ const Orders = () => {
             <option value="pending">Chờ xử lý</option>
             <option value="completed">Đã hoàn thành</option>
             <option value="cancelled">Đã hủy</option>
+            <option value="refunded">Đã hoàn trả</option>
           </select>
         </div>
       </div>
@@ -145,12 +149,15 @@ const Orders = () => {
                             ? 'bg-green-100 text-green-800'
                             : order.status === 'cancelled'
                               ? 'bg-red-100 text-red-800'
-                              : 'bg-gray-100 text-gray-800'
+                              : order.status === 'refunded'
+                                ? 'bg-blue-100 text-blue-800'
+                                : 'bg-gray-100 text-gray-800'
                       }`}
                     >
                       <option value="pending">Chờ xử lý</option>
                       <option value="completed">Đã hoàn thành</option>
                       <option value="cancelled">Đã hủy</option>
+                      <option value="refunded">Đã hoàn trả</option>
                     </select>
                   </td>
                   <td className="py-2 px-4 border-b">

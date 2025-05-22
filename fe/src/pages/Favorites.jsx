@@ -34,7 +34,7 @@ const Favorites = () => {
     try {
       await removeFromFavorites(productId, token);
       showSuccess(NOTIFICATIONS.product.favoriteRemoveSuccess);
-      fetchFavorites(getFavorites, token);
+      await fetchFavorites(getFavorites, token);
     } catch (err) {
       showError(err, NOTIFICATIONS.common.deleteFailed);
     }
@@ -60,10 +60,10 @@ const Favorites = () => {
       </h1>
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
         {favorites.map((favorite) => (
-          <div key={favorite.Product.id} className="relative">
-            <ProductCard product={favorite.Product} />
+          <div key={favorite.product.id} className="relative">
+            <ProductCard product={favorite.product} />
             <button
-              onClick={() => handleRemoveFromFavorites(favorite.Product.id)}
+              onClick={() => handleRemoveFromFavorites(favorite.product.id)}
               className="absolute top-2 right-2 bg-red-500 text-white p-2 rounded-full hover:bg-red-600 transition"
             >
               Xóa

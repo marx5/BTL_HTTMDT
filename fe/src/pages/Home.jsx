@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from 'react';
-import useApi from '../hooks/useApi';
 import useTitle from '../hooks/useTitle';
 import { getProducts } from '../services/product';
 import { getCategories } from '../services/category';

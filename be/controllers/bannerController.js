@@ -14,11 +14,26 @@ const bannerSchema = Joi.object({
 });
 
 // File Upload Configuration
+const uploadDir = path.join(process.cwd(), 'uploads', 'banners');
+console.log('Upload directory:', uploadDir);
+
+// Đảm bảo thư mục tồn tại
+if (!fs.existsSync(uploadDir)) {
+  console.log('Creating upload directory:', uploadDir);
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
 const storage = multer.diskStorage({
-  destination: './uploads/banners/',
+  destination: (req, file, cb) => {
+    console.log('Saving file to:', uploadDir);
+    cb(null, uploadDir);
+  },
   filename: (req, file, cb) => {
+    // Tạm thời sử dụng tên ngẫu nhiên
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, 'banner-' + uniqueSuffix + path.extname(file.originalname));
+    const filename = 'temp-' + uniqueSuffix + path.extname(file.originalname);
+    console.log('Generated filename:', filename);
+    cb(null, filename);
   }
 });
 
@@ -108,6 +123,9 @@ exports.createBanner = async (req, res, next) => {
       throw new AppError('image_required', 400);
     }
 
+    console.log('Original file path:', req.file.path);
+    console.log('File directory:', path.dirname(req.file.path));
+
     // Parse form data
     const formData = {
       isActive: parseBoolean(req.body.isActive),
@@ -128,10 +146,25 @@ exports.createBanner = async (req, res, next) => {
       throw new AppError('product_not_found', 404);
     }
 
-    // Tạo banner
+    // Đổi tên file
+    const ext = path.extname(req.file.path);
+    const newPath = path.join(uploadDir, `Banner${value.productId}${ext}`);
+    console.log('New file path:', newPath);
+    
+    // Xóa file cũ nếu tồn tại
+    if (fs.existsSync(newPath)) {
+      console.log('Deleting existing file:', newPath);
+      fs.unlinkSync(newPath);
+    }
+    
+    // Đổi tên file
+    console.log('Renaming file from:', req.file.path, 'to:', newPath);
+    fs.renameSync(req.file.path, newPath);
+
+    // Tạo banner với đường dẫn mới
     const banner = await Banner.create({
       ...value,
-      imageUrl: req.file.path
+      imageUrl: newPath
     }, { transaction });
 
     await transaction.commit();
@@ -141,6 +174,7 @@ exports.createBanner = async (req, res, next) => {
       data: banner
     });
   } catch (error) {
+    console.error('Error in createBanner:', error);
     await transaction.rollback();
     if (req.file?.path) {
       deleteFile(req.file.path);

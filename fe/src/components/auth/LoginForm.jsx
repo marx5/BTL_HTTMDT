@@ -59,7 +59,7 @@ const LoginForm = ({ onSubmit, isLoading }) => {
     try {
       // Form is already validated by the hook
       if (!formValues.recaptchaToken) {
-        throw { field: 'recaptchaToken', message: 'Vui lòng xác nhận reCAPTCHA' };
+        throw new Error('Vui lòng xác nhận reCAPTCHA');
       }
       
       await onSubmit(formValues.email, formValues.password, formValues.recaptchaToken);
