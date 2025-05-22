@@ -70,7 +70,7 @@ const auth = async (req, res, next) => {
 
 const adminAuth = async (req, res, next) => {
   try {
-    console.log('Checking admin role for user:', req.user);
+    console.log('Checking admin role for user:', req.user)
     if (!req.user || req.user.role !== 'admin') {
       console.log('User is not admin:', req.user?.role);
       throw new AppError('admin_access_required', 403);
