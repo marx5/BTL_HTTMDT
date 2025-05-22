@@ -40,28 +40,28 @@ async function initializeDatabase() {
     // Kiểm tra xem database đã tồn tại chưa
     const [results] = await adminSequelize.query(`SHOW DATABASES LIKE '${process.env.DB_NAME}'`);
     if (results.length === 0) {
-      // console.log(`Cơ sở dữ liệu ${process.env.DB_NAME} chưa tồn tại. Đang tạo...`);
+      console.log(`Cơ sở dữ liệu ${process.env.DB_NAME} chưa tồn tại. Đang tạo...`);
       // console.log('--------------------------------');
       await adminSequelize.query(`CREATE DATABASE ${process.env.DB_NAME}`);
-      // console.log(`Đã tạo cơ sở dữ liệu ${process.env.DB_NAME} thành công!`);
+      console.log(`Đã tạo cơ sở dữ liệu ${process.env.DB_NAME} thành công!`);
       // console.log('--------------------------------');
     } else {
-      // console.log(`Cơ sở dữ liệu ${process.env.DB_NAME} đã tồn tại.`);
+      console.log(`Cơ sở dữ liệu ${process.env.DB_NAME} đã tồn tại.`);
       // console.log('--------------------------------');
     }
 
     // Kiểm tra kết nối đến database
     await sequelize.authenticate();
-    // console.log('Đã kết nối đến cơ sở dữ liệu thành công.');
+    console.log('Đã kết nối đến cơ sở dữ liệu thành công.');
     // console.log('--------------------------------');
   } catch (error) {
-    // console.error('Lỗi khi khởi tạo cơ sở dữ liệu:', error.message);
+    console.error('Lỗi khi khởi tạo cơ sở dữ liệu:', error.message);
     // console.log('--------------------------------');
     throw error;
   } finally {
     // Đóng kết nối adminSequelize
     await adminSequelize.close();
-    // console.log('Admin Sequelize connection closed.');
+    console.log('Admin Sequelize connection closed.');
     // console.log('--------------------------------');
   }
 }
