@@ -19,6 +19,7 @@ const paymentRoutes = require('./routes/paymentRoutes');
 const bannerRoutes = require('./routes/bannerRoutes');
 const favoriteRoutes = require('./routes/favoriteRoutes');
 const cartRoutes = require('./routes/cartRoutes');
+const chatbotRoutes = require('./routes/chatbotRoutes');
 
 // Khởi tạo app Express
 require('dotenv').config();
@@ -74,6 +75,7 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api/banners', bannerRoutes);
 app.use('/api/favorites', favoriteRoutes);
 app.use('/api/cart', cartRoutes);
+app.use('/api/chatbot', chatbotRoutes);
 
 // Swagger UI (chỉ bật trong môi trường development)
 if (process.env.NODE_ENV !== 'production') {

@@ -509,7 +509,7 @@ exports.momoSuccess = async (req, res) => {
     const orderId = requestData.orderId;
     
     // Cập nhật trạng thái thanh toán
-    const gatewayStatus = requestData.resultCode === 0 || requestData.resultCode === "0" ? "SUCCESS" : "FAILED";
+    const gatewayStatus = requestData.resultCode === 0 || requestData.resultCode === "0" ? "PAID" : "FAILED";
     await paymentService.handleGatewayPaymentStatus(
       orderId,
       gatewayStatus,

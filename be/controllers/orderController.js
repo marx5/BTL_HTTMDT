@@ -192,7 +192,7 @@ exports.createOrder = async (req, res, next) => {
           }))
         );
       }
-      if (paymentMethod === 'vnpay' && paymentStatus === PAYMENT_STATUS.PAID) {
+      if (paymentMethod === 'vnpay' && order.paymentStatus === PAYMENT_STATUS.PAID) {
         await sendOrderConfirmationEmail(
           user.email, 
           order.id, 
@@ -207,7 +207,7 @@ exports.createOrder = async (req, res, next) => {
           }))
         );
       }
-      if (paymentMethod === 'momo' && paymentStatus === PAYMENT_STATUS.PAID) {
+      if (paymentMethod === 'momo' && order.paymentStatus === PAYMENT_STATUS.PAID) {
         await sendOrderConfirmationEmail(
           user.email, 
           order.id, 
