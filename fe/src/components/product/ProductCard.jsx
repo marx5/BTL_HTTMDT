@@ -95,21 +95,19 @@ const ProductCard = ({ product }) => {
 
   return (
     <div
-      className="group relative bg-white rounded-xl shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden border border-gray-200 hover:border-primary flex flex-col"
+      className="w-48 h-[320px] bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden border border-gray-200 hover:border-primary flex flex-col group relative"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      {/* Favorite button */}
+      {/* Nút yêu thích */}
       <button
         onClick={handleFavoriteClick}
         disabled={isLoading}
-        className={`absolute top-3 right-3 z-10 p-2 rounded-full transition-all duration-300 ${
-          isFavorited
-            ? 'bg-red-500 text-white shadow-lg'
-            : 'bg-white/80 text-gray-600 hover:bg-white hover:text-red-500'
-        } ${isHovered ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
+        className={`absolute top-4 right-4 z-10 p-2 rounded-full transition-all duration-300 shadow-md
+          ${isFavorited ? 'bg-red-500 text-white' : 'bg-white/80 text-gray-600 hover:bg-white hover:text-red-500'}
+          ${isHovered ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
       >
-        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+        <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
           <path
             fillRule="evenodd"
             d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z"
@@ -118,53 +116,42 @@ const ProductCard = ({ product }) => {
         </svg>
       </button>
 
-      {/* Product image - contained in its own section */}
-      <div className="relative aspect-square overflow-hidden border-b border-gray-100">
+      {/* Ảnh sản phẩm */}
+      <div className="relative h-2/3 flex items-center justify-center bg-gray-50 overflow-hidden">
         {getProductImage() ? (
           <img
             src={getProductImage()}
             alt={product.name || 'Product image'}
-            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+            className="max-h-full max-w-full object-contain transition-transform duration-500 group-hover:scale-105"
           />
         ) : (
           <div className="w-full h-full bg-gray-100 flex items-center justify-center">
             <span className="text-gray-400">Không có hình ảnh</span>
           </div>
         )}
-        
-        {/* Discount badge */}
+        {/* Badge giảm giá */}
         {product.discount > 0 && (
-          <div className="absolute top-3 left-3 bg-red-500 text-white px-2 py-1 rounded-full text-sm font-medium">
+          <span className="absolute top-3 left-3 bg-red-500 text-white px-3 py-1 rounded-full text-xs font-bold shadow">
             -{product.discount}%
-          </div>
+          </span>
         )}
       </div>
 
-      {/* Product info - clear separation */}
-      <div className="p-4 flex-grow flex flex-col justify-between bg-white">
-        <div>
-          <h3 className="text-lg font-semibold text-gray-800 mb-3 line-clamp-2 min-h-[3.5rem]">
-            {product.name || 'Unnamed Product'}
-          </h3>
-
-          <div className="flex items-center justify-between mb-4 border-t border-gray-100 pt-3">
-            <p className="text-xl font-bold text-primary">
-              {product.price ? product.price.toLocaleString('vi-VN') : '0'} VND
-            </p>
-            {product.discount > 0 && (
-              <span className="text-sm text-gray-500 line-through">
-                {(product.price * (1 + product.discount / 100)).toLocaleString(
-                  'vi-VN'
-                )}{' '}
-                VND
-              </span>
-            )}
-          </div>
+      {/* Thông tin sản phẩm */}
+      <div className="flex-1 flex flex-col justify-between p-4 bg-white">
+        <h3 className="font-semibold text-lg text-gray-900 truncate mb-2 min-h-[2.5rem]">{product.name || 'Unnamed Product'}</h3>
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-primary font-bold text-xl">
+            {product.price ? product.price.toLocaleString('vi-VN') : '0'} VND
+          </span>
+          {product.discount > 0 && (
+            <span className="text-sm text-gray-500 line-through">
+              {(product.price * (1 + product.discount / 100)).toLocaleString('vi-VN')} VND
+            </span>
+          )}
         </div>
-
-        {/* Action button */}
         <Link to={`/product/${product.id}`} className="block mt-auto">
-          <Button variant="primary" className="w-full justify-center">
+          <Button variant="primary" className="w-full justify-center py-2 rounded-lg text-base font-semibold">
             Xem chi tiết
           </Button>
         </Link>

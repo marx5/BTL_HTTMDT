@@ -16,23 +16,26 @@ const DatePicker = ({ value, onChange, name, error, required = false }) => {
     setDate(parseDate(value));
   }, [value]);
 
-  // Tạo danh sách năm (từ năm hiện tại trở về 100 năm trước)
+  // Tạo danh sách năm: chỉ 5 năm gần nhất, không vượt quá năm hiện tại
   const currentYear = new Date().getFullYear();
-  const years = Array.from({ length: 100 }, (_, i) => currentYear - 99 + i);
+  const years = Array.from({ length: 5 }, (_, i) => currentYear - i);
 
-  // Tạo danh sách tháng (1-12)
-  const months = Array.from({ length: 12 }, (_, i) => i + 1);
+  // Tạo danh sách tháng (1-12), nếu chọn năm hiện tại thì chỉ hiển thị đến tháng hiện tại
+  const selectedYear = parseInt(date.year, 10);
+  const maxMonth = selectedYear === currentYear ? new Date().getMonth() + 1 : 12;
+  const months = Array.from({ length: maxMonth }, (_, i) => i + 1);
 
-  // Tạo danh sách ngày (1-31, tùy thuộc vào tháng và năm)
-  const getDaysInMonth = (month, year) => {
-    if (!month || !year) return Array.from({ length: 31 }, (_, i) => i + 1);
-    
-    // Tháng trong JavaScript bắt đầu từ 0
-    const daysInMonth = new Date(year, month, 0).getDate();
-    return Array.from({ length: daysInMonth }, (_, i) => i + 1);
-  };
-
-  const days = getDaysInMonth(date.month, date.year);
+  // Tạo danh sách ngày (1-31, tùy thuộc vào tháng và năm), nếu chọn năm và tháng hiện tại thì chỉ hiển thị đến ngày hiện tại
+  const selectedMonth = parseInt(date.month, 10);
+  let maxDay;
+  if (selectedYear === currentYear && selectedMonth === new Date().getMonth() + 1) {
+    maxDay = new Date().getDate();
+  } else if (selectedYear && selectedMonth) {
+    maxDay = new Date(selectedYear, selectedMonth, 0).getDate();
+  } else {
+    maxDay = 31;
+  }
+  const days = Array.from({ length: maxDay }, (_, i) => i + 1);
 
   // Xử lý khi thay đổi giá trị
   const handleChange = (e) => {
@@ -55,18 +58,18 @@ const DatePicker = ({ value, onChange, name, error, required = false }) => {
     <div className="grid grid-cols-3 gap-2">
       <div>
         <select
-          name="day"
-          value={date.day}
+          name="year"
+          value={date.year}
           onChange={handleChange}
-          className={`block w-full px-3 py-2 border ${
+          className={`select-year block w-full px-3 py-2 border ${
             error ? 'border-red-500' : 'border-gray-300'
           } rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary`}
           required={required}
         >
-          <option value="">Ngày</option>
-          {days.map((day) => (
-            <option key={`day-${day}`} value={String(day).padStart(2, '0')}>
-              {day}
+          <option value="">Năm</option>
+          {years.map((year) => (
+            <option key={`year-${year}`} value={year}>
+              {year}
             </option>
           ))}
         </select>
@@ -91,18 +94,18 @@ const DatePicker = ({ value, onChange, name, error, required = false }) => {
       </div>
       <div>
         <select
-          name="year"
-          value={date.year}
+          name="day"
+          value={date.day}
           onChange={handleChange}
           className={`block w-full px-3 py-2 border ${
             error ? 'border-red-500' : 'border-gray-300'
           } rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary`}
           required={required}
         >
-          <option value="">Năm</option>
-          {years.map((year) => (
-            <option key={`year-${year}`} value={year}>
-              {year}
+          <option value="">Ngày</option>
+          {days.map((day) => (
+            <option key={`day-${day}`} value={String(day).padStart(2, '0')}>
+              {day}
             </option>
           ))}
         </select>
@@ -113,3 +116,16 @@ const DatePicker = ({ value, onChange, name, error, required = false }) => {
 };
 
 export default DatePicker;
+
+// Thêm CSS cho dropdown năm chỉ hiển thị 5 dòng và có thể cuộn
+const style = document.createElement('style');
+style.innerHTML = `
+  select.select-year option {
+    /* Không thể kiểm soát số dòng option, nhưng có thể kiểm soát chiều cao dropdown */
+  }
+  select.select-year {
+    max-height: 180px; /* Chiều cao tương ứng khoảng 5 dòng, có thể điều chỉnh */
+    overflow-y: auto;
+  }
+`;
+document.head.appendChild(style);

@@ -30,7 +30,7 @@ const Login = () => {
       navigate('/');
     } catch (err) {
       const errorMessage = err.message || (typeof err === 'string' ? err : 'Đăng nhập thất bại');
-      throw { field: '_form', message: errorMessage };
+      throw new Error(errorMessage);
     }
   };
 

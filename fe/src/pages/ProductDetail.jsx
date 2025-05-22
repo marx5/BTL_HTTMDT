@@ -3,7 +3,6 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import useApi from '../hooks/useApi';
 import { getProductById } from '../services/product';
-import { buyNow } from '../services/order';
 import { fetchAddresses } from '../redux/slices/addressSlice';
 import { useAuth } from '../context/AuthContext';
 import useCart from '../hooks/useCart';
@@ -103,10 +102,13 @@ const ProductDetail = () => {
     try {
       setIsBuyingNow(true);
       
+      // Chuyển đổi variantId thành số
+      const variantId = parseInt(selectedVariant.id, 10);
+      
       // Lưu thông tin sản phẩm vào localStorage để sử dụng ở trang checkout
       const checkoutItem = {
         productId: product.id,
-        variantId: selectedVariant.id,
+        variantId: variantId,
         quantity: quantity,
         addressId: addressId,
         productInfo: {
@@ -153,11 +155,11 @@ const ProductDetail = () => {
 
     setIsAddingToCart(true);
     try {
-      await addToCart(selectedVariant.id, quantity);
-      // Không cần toast.success ở đây vì đã được xử lý trong context
+      // Chuyển đổi variantId thành số
+      const variantId = parseInt(selectedVariant.id, 10);
+      await addToCart(variantId, quantity);
     } catch (error) {
       console.error('Error adding to cart:', error);
-      // Không cần toast.error ở đây vì đã được xử lý trong context
     } finally {
       setIsAddingToCart(false);
     }
@@ -370,7 +372,13 @@ const ProductDetail = () => {
                     <AddressList
                       addresses={addresses || []}
                       selectedAddress={addressId}
-                      onSelectAddress={(address) => setAddressId(address.id)}
+                      onSelectAddress={(address) => {
+                        if (!address) {
+                          setShowAddressForm(true);
+                          return;
+                        }
+                        setAddressId(address.id);
+                      }}
                     />
                     <Button
                       onClick={() => setShowAddressForm(true)}

@@ -4,8 +4,10 @@ import useApi from '../../hooks/useApi';
 import { useAuth } from '../../context/AuthContext';
 import { getUsers, deleteUser } from '../../services/adminUser';
 import toast from 'react-hot-toast';
-
+import useTitle from '../../hooks/useTitle';
 const Users = () => {
+  // Set tiêu đề trang
+  useTitle('Quản lý người dùng');
   const { user } = useAuth();
   const { data: usersData, loading, error, callApi: fetchUsers } = useApi();
   const [page, setPage] = useState(1);

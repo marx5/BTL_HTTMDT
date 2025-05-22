@@ -21,7 +21,7 @@ const CartItem = ({ item, onUpdateQuantity, onRemove, onSelect }) => {
       setQuantity(validQuantity);
       setIsSelected(item.selected || false);
     }
-  }, [item?.quantity, item?.selected, maxStock]);
+  }, [item, item?.quantity, item?.selected, maxStock]);
 
   const formatPrice = (price) => {
     return (price || 0).toLocaleString('vi-VN') + 'đ';

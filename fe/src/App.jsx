@@ -32,6 +32,7 @@ import OrdersAdmin from './pages/admin/Orders';
 import OrderDetail from './pages/admin/OrderDetail';
 import Banners from './pages/admin/Banners';
 import OrderConfirmation from './pages/OrderConfirmation';
+import PaymentResult from './pages/PaymentResult';
 import { Toaster } from 'react-hot-toast';
 import AdminLayout from './components/layout/AdminLayout';
 import { Navigate } from 'react-router-dom';
@@ -139,6 +140,7 @@ const App = () => {
                   <Route path="/products" element={<Products />} />
                   <Route path="/products/category/:categoryId" element={<Products />}/>
                   <Route path="/order-confirmation/:id" element={<OrderConfirmation />} />
+                  <Route path="/payment/result" element={<PaymentResult />} />
                 </Routes>
               </div>
               <Footer />

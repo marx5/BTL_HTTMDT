@@ -30,7 +30,7 @@ exports.getPayment = async (req, res, next) => {
     });
 
     if (!payment) {
-      throw new AppError('payment_not_found', 404);
+      throw new AppError('Không tìm thấy phương thức thanh toán', 404);
     }
 
     res.json({
@@ -41,7 +41,7 @@ exports.getPayment = async (req, res, next) => {
       amount: payment.amount,
     });
   } catch (err) {
-    console.error('Get payment error:', err);
+    console.error('Lỗi khi lấy phương thức thanh toán:', err);
     next(err);
   }
 };
@@ -72,7 +72,7 @@ exports.createCodPayment = async (req, res) => {
       order: order
     });
   } catch (error) {
-    console.error('Error processing COD payment:', error);
+    console.error('Lỗi khi xử lý thanh toán COD:', error);
     return res.status(500).json({
       success: false,
       message: 'Có lỗi xảy ra khi xử lý thanh toán COD',
@@ -263,6 +263,7 @@ exports.createVNPayPayment = async (req, res) => {
 
 // Xử lý callback từ VNPay
 exports.vnpayReturn = async (req, res) => {
+  let orderId;
   try {
     const vnp_Params = req.query;
     const secureHash = vnp_Params['vnp_SecureHash'];
@@ -272,14 +273,11 @@ exports.vnpayReturn = async (req, res) => {
     const sortedParams = sortObject(vnp_Params);
     const secretKey = process.env.VNP_HASH_SECRET;
     const signData = qs.stringify(sortedParams, {
-      encode: true, // Quan trọng: đặt là true để encoder được áp dụng
+      encode: true,
       encoder: function (str, defaultEncoder, charset, type) {
         if (type === 'value') {
-          // Mã hóa giá trị: encodeURIComponent rồi thay thế %20 bằng +
-          // Điều này mô phỏng cách application/x-www-form-urlencoded mã hóa khoảng trắng
           return encodeURIComponent(str).replace(/%20/g, '+');
         }
-        // Đối với 'key', sử dụng trình mã hóa mặc định (thường là encodeURIComponent)
         return defaultEncoder(str, defaultEncoder, charset, type);
       }
     });
@@ -292,8 +290,15 @@ exports.vnpayReturn = async (req, res) => {
     console.log('Chữ ký VNPay:', secureHash);
 
     if (secureHash === signed) {
-      const orderId = vnp_Params['vnp_TxnRef'];
+      orderId = vnp_Params['vnp_TxnRef'];
       const rspCode = vnp_Params['vnp_ResponseCode'];
+
+      // Kiểm tra nếu đơn hàng đã được thanh toán
+      const order = await Order.findByPk(orderId);
+      if (order && order.paymentStatus === 'PAID') {
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+        return res.redirect(`${frontendUrl}/order-confirmation/${orderId}`);
+      }
 
       // Cập nhật trạng thái thanh toán
       const gatewayStatus = rspCode === "00" ? "SUCCESS" : "FAILED";
@@ -313,12 +318,15 @@ exports.vnpayReturn = async (req, res) => {
       return res.redirect(`${frontendUrl}/order-confirmation/${orderId}`);
     } else {
       const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-      return res.redirect(`${frontendUrl}/order-confirmation/${orderId}`);
+      return res.redirect(`${frontendUrl}/payment/result?error=invalid_signature`);
     }
   } catch (error) {
     console.error('Error processing VNPay return:', error);
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-    return res.redirect(`${frontendUrl}/order-confirmation/${orderId}`);
+    if (orderId) {
+      return res.redirect(`${frontendUrl}/order-confirmation/${orderId}`);
+    }
+    return res.redirect(`${frontendUrl}/payment/result?error=processing_error`);
   }
 };
 

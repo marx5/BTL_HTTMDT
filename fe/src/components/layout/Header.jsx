@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { logout } from '../../redux/slices/authSlice';
-import { showSuccess } from '../../utils/notification';
 
 const Header = () => {
   const dispatch = useDispatch();
@@ -144,6 +143,13 @@ const Header = () => {
                     onClick={() => setShowProfileDropdown(false)}
                   >
                     Đơn hàng
+                  </Link>
+                  <Link
+                    to="/favorites"
+                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    onClick={() => setShowProfileDropdown(false)}
+                  >
+                    Yêu thích
                   </Link>
                   <button
                     onClick={confirmLogout}

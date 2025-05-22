@@ -2,8 +2,11 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getUserById, getUserOrders } from '../../services/user';
 import { showError } from '../../utils/notification';
-
+import useTitle from '../../hooks/useTitle';
 const UserDetail = () => {
+  // Set tiêu đề trang
+  useTitle('Chi tiết người dùng');
+
   const { id } = useParams();
   const navigate = useNavigate();
   const [user, setUser] = useState(null);

@@ -20,3 +20,24 @@ export const createCodPayment = async (orderData) => {
     throw error;
   }
 };
+
+// Tạo thanh toán VNPay
+export const createVNPayPayment = async (orderData) => {
+  try {
+    const response = await api.post('/payments/create_vnpay_payment', orderData);
+    return response.data;
+  } catch (error) {
+    console.error('Error creating VNPay payment:', error);
+    throw error;
+  }
+};
+
+export const createMomoPayment = async (data) => {
+  try {
+    const response = await api.post('/payments/create_momo_payment', data);
+    return response.data;
+  } catch (error) {
+    console.error('Error creating MoMo payment:', error);
+    throw error;
+  }
+};

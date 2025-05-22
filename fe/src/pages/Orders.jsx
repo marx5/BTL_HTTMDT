@@ -45,16 +45,63 @@ const Orders = () => {
     switch (status) {
       case 'pending':
         return 'bg-yellow-100 text-yellow-800';
-      case 'processing':
-        return 'bg-blue-100 text-blue-800';
-      case 'shipped':
-        return 'bg-purple-100 text-purple-800';
-      case 'delivered':
+      case 'completed':
         return 'bg-green-100 text-green-800';
+      case 'refunded':
+        return 'bg-red-100 text-red-800';
       case 'cancelled':
         return 'bg-red-100 text-red-800';
       default:
         return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getStatusText = (status) => {
+    switch (status) {
+      case 'pending':
+        return 'Chờ xử lý';
+      case 'completed':
+        return 'Đã hoàn thành';
+      case 'refunded':
+        return 'Đã hoàn trả';
+      case 'cancelled':
+        return 'Đã hủy';
+      default:
+        return 'Không xác định';
+    }
+  };
+
+  const getPaymentStatusColor = (status) => {
+    switch (status) {
+      case 'PAID':
+        return 'bg-green-100 text-green-800';
+      case 'PENDING':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'FAILED':
+        return 'bg-red-100 text-red-800';
+      case 'REFUNDED':
+        return 'bg-blue-100 text-blue-800';
+      case 'CANCELLED':
+        return 'bg-red-100 text-red-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getPaymentStatusText = (status) => {
+    switch (status) {
+      case 'PAID':
+        return 'Đã thanh toán';
+      case 'PENDING':
+        return 'Chờ thanh toán';
+      case 'FAILED':
+        return 'Thanh toán thất bại';
+      case 'REFUNDED':
+        return 'Đã hoàn trả';
+      case 'CANCELLED':
+        return 'Đã hủy';
+      default:
+        return 'Chưa thanh toán';
     }
   };
 
@@ -88,7 +135,7 @@ const Orders = () => {
                   <span
                     className={`ml-4 px-2 py-1 rounded-full text-sm ${getStatusColor(order.status)}`}
                   >
-                    {order.status || 'pending'}
+                    {getStatusText(order.status)}
                   </span>
                 </div>
                 <div className="text-sm text-gray-500">
@@ -148,20 +195,22 @@ const Orders = () => {
                 <div>
                   <span className="text-sm text-gray-500">Trạng thái thanh toán:</span>
                   <span
-                    className={`ml-2 px-2 py-1 rounded-full text-sm ${
-                      order.paymentStatus === 'PAID'
-                        ? 'bg-green-100 text-green-800'
-                        : order.paymentStatus === 'PENDING'
-                        ? 'bg-yellow-100 text-yellow-800'
-                        : 'bg-red-100 text-red-800'
-                    }`}
+                    className={`ml-2 px-2 py-1 rounded-full text-sm ${getPaymentStatusColor(order.paymentStatus)}`}
                   >
-                    {order.paymentStatus === 'PAID' 
-                      ? 'Đã thanh toán' 
-                      : order.paymentStatus === 'PENDING' 
-                      ? 'Đang chờ thanh toán' 
-                      : 'Chưa thanh toán'}
+                    {getPaymentStatusText(order.paymentStatus)}
                   </span>
+                  <div className="mt-2">
+                    <span className="text-sm text-gray-500">Phương thức thanh toán:</span>
+                    <span className="ml-2 px-2 py-1 rounded-full text-sm bg-blue-100 text-blue-800">
+                      {order.paymentMethod === 'cod' 
+                        ? 'Thanh toán khi nhận hàng (COD)' 
+                        : order.paymentMethod === 'vnpay' 
+                        ? 'VNPay' 
+                        : order.paymentMethod === 'momo'
+                        ? 'Momo'
+                        : 'Không xác định'}
+                    </span>
+                  </div>
                 </div>
                 <div className="text-right">
                   <p className="text-sm text-gray-500">Phí vận chuyển:</p>
