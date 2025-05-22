@@ -18,6 +18,7 @@ Mở terminal hoặc command prompt, di chuyển vào thư mục `be` và chạy
 ```bash
 cd be
 npm install
+node be/database/seeders/seed.js
 ```
 
 Hoặc nếu bạn sử dụng yarn:
@@ -56,14 +57,14 @@ Phần frontend được xây dựng bằng một JavaScript framework (ví dụ
 Mở một terminal hoặc command prompt mới, di chuyển vào thư mục `fee` và chạy lệnh sau để cài đặt các package cần thiết:
 
 ```bash
-cd fee
+cd fe
 npm install
 ```
 
 Hoặc nếu bạn sử dụng yarn:
 
 ```bash
-cd fee
+cd fe
 yarn install
 ```
 
